@@ -1,0 +1,336 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// PrepForge — Prisma Schema
+// Complete data model for the collaborative preparation platform.
+// ═══════════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum ResourceType {
+  BOOK
+  COURSE
+  WEBSITE
+  PROBLEM_SET
+  VIDEO_SERIES
+  SLIDES
+  NOTES
+  DOC
+  TEMPLATE
+  GUIDE
+  COLLECTION
+  PRACTICE
+}
+
+enum ItemType {
+  QUESTION
+  VIDEO
+  PUZZLE
+  READING
+  EXERCISE
+  CONCEPT
+  PROBLEM
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+  DEADLY
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  DONE
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum NoteVisibility {
+  PERSONAL
+  PUBLIC
+}
+
+// ─── User ───────────────────────────────────────────────────────────────────
+
+model User {
+  id          String   @id @default(cuid())
+  firebaseUid String   @unique @map("firebase_uid")
+  email       String   @unique
+  displayName String   @map("display_name")
+  photoUrl    String?  @map("photo_url")
+  xp          Int      @default(0)
+  level       Int      @default(1)
+  streak      Int      @default(0)
+  longestStreak Int    @default(0) @map("longest_streak")
+  lastActiveDate String? @map("last_active_date") // YYYY-MM-DD for streak tracking
+
+  // Relations
+  progress     UserItemProgress[]
+  memberships  GroupMember[]
+  comments     Comment[]
+  notes        Note[]
+  ownedGroups  Group[]         @relation("GroupOwner")
+  chatMessages ChatMessage[]
+  activities   ActivityLog[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+// ─── Group ──────────────────────────────────────────────────────────────────
+
+model Group {
+  id           String    @id @default(cuid())
+  name         String
+  description  String?
+  inviteCode   String    @unique @map("invite_code")
+  inviteExpiry DateTime? @map("invite_expiry")
+  isDefault    Boolean   @default(false) @map("is_default")
+
+  // Relations
+  createdById  String    @map("created_by_id")
+  createdBy    User      @relation("GroupOwner", fields: [createdById], references: [id])
+  tracks       Track[]
+  members      GroupMember[]
+  chatMessages ChatMessage[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("groups")
+}
+
+model GroupMember {
+  id       String     @id @default(cuid())
+  role     MemberRole @default(MEMBER)
+
+  userId   String @map("user_id")
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId  String @map("group_id")
+  group    Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  @@unique([userId, groupId])
+  @@map("group_members")
+}
+
+// ─── Resource Hierarchy ─────────────────────────────────────────────────────
+// Track -> Category -> Resource -> Unit -> SubUnit -> Item
+
+model Track {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  icon        String? // emoji or icon name
+  color       String? // hex color for UI accent
+  order       Int     @default(0)
+  isDefault   Boolean @default(false) @map("is_default")
+
+  groupId    String     @map("group_id")
+  group      Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  categories Category[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("tracks")
+}
+
+model Category {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  icon        String?
+  order       Int     @default(0)
+
+  trackId   String     @map("track_id")
+  track     Track      @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  resources Resource[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("categories")
+}
+
+model Resource {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  type        ResourceType
+  url         String?
+  isMustDo    Boolean      @default(false) @map("is_must_do")
+  order       Int          @default(0)
+
+  categoryId String @map("category_id")
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  units      Unit[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("resources")
+}
+
+model Unit {
+  id          String  @id @default(cuid())
+  name        String  // Chapter, Module, Difficulty Level
+  description String?
+  order       Int     @default(0)
+
+  resourceId String   @map("resource_id")
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  subUnits   SubUnit[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("units")
+}
+
+model SubUnit {
+  id          String  @id @default(cuid())
+  name        String  // Section, Topic
+  description String?
+  order       Int     @default(0)
+
+  unitId String @map("unit_id")
+  unit   Unit   @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  items  Item[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("sub_units")
+}
+
+model Item {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  type        ItemType
+  url         String?
+  difficulty  Difficulty?
+  order       Int         @default(0)
+
+  subUnitId String  @map("sub_unit_id")
+  subUnit   SubUnit @relation(fields: [subUnitId], references: [id], onDelete: Cascade)
+
+  // User engagement
+  progress UserItemProgress[]
+  comments Comment[]
+  notes    Note[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("items")
+}
+
+// ─── User Engagement ────────────────────────────────────────────────────────
+
+model UserItemProgress {
+  id          String         @id @default(cuid())
+  status      ProgressStatus @default(NOT_STARTED)
+  completion  Int            @default(0) // 0-100
+  isStarred   Boolean        @default(false) @map("is_starred")
+  isWatchLater Boolean       @default(false) @map("is_watch_later")
+  completedAt DateTime?      @map("completed_at")
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId String @map("item_id")
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, itemId])
+  @@index([userId])
+  @@index([itemId])
+  @@map("user_item_progress")
+}
+
+model Comment {
+  id       String  @id @default(cuid())
+  content  String
+  parentId String? @map("parent_id")
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId String @map("item_id")
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  // Self-referential for threaded replies
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([itemId])
+  @@map("comments")
+}
+
+model Note {
+  id         String         @id @default(cuid())
+  content    String
+  visibility NoteVisibility @default(PERSONAL)
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId String @map("item_id")
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([itemId])
+  @@map("notes")
+}
+
+// ─── Real-time / Chat ───────────────────────────────────────────────────────
+
+model ChatMessage {
+  id       String  @id @default(cuid())
+  content  String
+  threadId String? @map("thread_id") // null = general chat, else item ID for context
+
+  userId  String @map("user_id")
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId String @map("group_id")
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([groupId, createdAt])
+  @@map("chat_messages")
+}
+
+// ─── Activity Tracking (for heatmaps & XP) ──────────────────────────────────
+
+model ActivityLog {
+  id     String @id @default(cuid())
+  action String // e.g., "MARK_ITEM_DONE", "ADD_COMMENT", "DAILY_LOGIN"
+  xpAwarded Int  @default(0) @map("xp_awarded")
+  metadata  String? // JSON string for extra context
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("activity_logs")
+}

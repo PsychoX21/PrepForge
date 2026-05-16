@@ -1,0 +1,30 @@
+{
+  "name": "prepforge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Collaborative preparation platform for competitive programming, quant trading, and SWE interviews",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "server"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:server": "npm run start:dev --workspace=server",
+    "dev": "concurrently \"npm run dev:web\" \"npm run dev:server\"",
+    "build:web": "npm run build --workspace=apps/web",
+    "build:server": "npm run build --workspace=server",
+    "build": "npm run build:web && npm run build:server",
+    "db:generate": "npm run prisma:generate --workspace=server",
+    "db:migrate": "npm run prisma:migrate --workspace=server",
+    "db:seed": "npm run prisma:seed --workspace=server",
+    "db:studio": "npm run prisma:studio --workspace=server",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

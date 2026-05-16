@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GoogleIcon } from "@/components/ui/icons";
+import Link from "next/link";
 
 // ─── Stats Bar ──────────────────────────────────────────────────────────────
 
@@ -97,14 +98,18 @@ export function HeroSection() {
           variants={itemVariants}
           className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
         >
-          <Button variant="primary" size="xl" className="group w-full sm:w-auto" id="hero-cta-primary">
-            <GoogleIcon className="w-5 h-5" />
-            Sign in with Google
-            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+          <Button variant="primary" size="xl" className="group w-full sm:w-auto" id="hero-cta-primary" asChild>
+            <Link href="/login">
+              <GoogleIcon className="w-5 h-5" />
+              Sign in with Google
+              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            </Link>
           </Button>
-          <Button variant="secondary" size="xl" className="w-full sm:w-auto" id="hero-cta-demo">
-            <BookOpen className="w-5 h-5" />
-            Explore Demo
+          <Button variant="secondary" size="xl" className="w-full sm:w-auto" id="hero-cta-demo" asChild>
+            <Link href="/dashboard">
+              <BookOpen className="w-5 h-5" />
+              Explore Demo
+            </Link>
           </Button>
         </motion.div>
 

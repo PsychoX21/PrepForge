@@ -9,11 +9,11 @@ import {
   Target,
   TrendingUp,
   Zap,
-  Star,
   Clock,
   CheckCircle2,
   BookOpen,
 } from "lucide-react";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -236,9 +236,12 @@ export default function DashboardPage() {
                         variant="ghost"
                         size="sm"
                         className="w-full mt-1 text-xs"
+                        asChild
                       >
-                        <BookOpen className="w-3.5 h-3.5" />
-                        Continue
+                        <Link href={`/tracks/${track.id}`}>
+                          <BookOpen className="w-3.5 h-3.5" />
+                          Continue
+                        </Link>
                       </Button>
                     </CardContent>
                   </Card>

@@ -5,6 +5,7 @@
  * Glassmorphic sticky header with scroll-triggered opacity.
  */
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Flame, Menu, X } from "lucide-react";
 import { GithubIcon } from "@/components/ui/icons";
@@ -40,7 +41,7 @@ export function Navbar() {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" id="main-nav">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <a href="/" className="flex items-center gap-2.5 group" id="logo-link">
+          <Link href="/" className="flex items-center gap-2.5 group" id="logo-link">
             <div className="relative">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-blue to-accent-purple flex items-center justify-center">
                 <Flame className="w-4.5 h-4.5 text-white animate-flame" />
@@ -51,7 +52,7 @@ export function Navbar() {
               <span className="text-text-primary">Prep</span>
               <span className="text-gradient">Forge</span>
             </span>
-          </a>
+          </Link>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-1">
@@ -79,8 +80,8 @@ export function Navbar() {
                 <GithubIcon className="w-4 h-4" />
               </a>
             </Button>
-            <Button variant="primary" size="sm" id="get-started-nav-btn">
-              Get Started
+            <Button variant="primary" size="sm" id="get-started-nav-btn" asChild>
+              <Link href="/login">Get Started</Link>
             </Button>
           </div>
 
@@ -119,8 +120,8 @@ export function Navbar() {
                 </a>
               ))}
               <div className="pt-2 px-4">
-                <Button variant="primary" size="md" className="w-full">
-                  Get Started
+                <Button variant="primary" size="md" className="w-full" asChild>
+                  <Link href="/login">Get Started</Link>
                 </Button>
               </div>
             </div>

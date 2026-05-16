@@ -23,7 +23,7 @@ interface UserSocket extends Socket {
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: process.env.CORS_ORIGIN || 'http://localhost:4000',
     credentials: true,
   },
   namespace: '/',

@@ -3,7 +3,7 @@
 /**
  * Auth components — LoginButton, AuthGuard, AuthProvider
  */
-import { ReactNode, useEffect } from "react";
+import { ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { GoogleIcon } from "@/components/ui/icons";

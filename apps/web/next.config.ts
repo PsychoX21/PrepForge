@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Empty config allows Next.js 16 to use Turbopack seamlessly
 };
 
 export default nextConfig;

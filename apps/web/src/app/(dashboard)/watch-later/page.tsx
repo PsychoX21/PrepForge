@@ -4,7 +4,7 @@
  * Watch Later page — items queued for later review.
  */
 import { motion } from "framer-motion";
-import { Clock, BookOpen } from "lucide-react";
+import { Clock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/common";

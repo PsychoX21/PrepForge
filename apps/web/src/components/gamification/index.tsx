@@ -4,7 +4,7 @@
  * Gamification UI components — XPBar, StreakBadge, LevelBadge
  */
 import { motion } from "framer-motion";
-import { Flame, Zap, TrendingUp, Star } from "lucide-react";
+import { Flame, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── XPBar ──────────────────────────────────────────────────────────────────

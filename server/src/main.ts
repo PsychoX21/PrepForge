@@ -23,7 +23,7 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: configService.get<string>('CORS_ORIGIN', 'http://localhost:3000'),
+    origin: configService.get<string>('CORS_ORIGIN', 'http://localhost:4000'),
     credentials: true,
   });
 
@@ -41,7 +41,7 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new TransformInterceptor());
 
-  const port = configService.get<number>('PORT', 3001);
+  const port = configService.get<number>('PORT', 4001);
   await app.listen(port);
   console.log(`🔥 PrepForge API running on http://localhost:${port}/api`);
 }

@@ -4,8 +4,8 @@
  * War Room page — live presence and focus broadcasting.
  */
 import { motion } from "framer-motion";
-import { Radio, Circle, BookOpen, Clock, Zap } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Radio, Circle, BookOpen, Clock } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 const ONLINE_USERS = [

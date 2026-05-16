@@ -9,6 +9,17 @@ const prisma = new PrismaClient();
 async function seed() {
   console.log('🌱 Starting PrepForge seed...\n');
 
+  // Ensure a system user exists
+  const systemUser = await prisma.user.upsert({
+    where: { email: 'system@prepforge.app' },
+    update: {},
+    create: {
+      firebaseUid: 'system_admin_uid',
+      email: 'system@prepforge.app',
+      displayName: 'System Admin',
+    },
+  });
+
   // Create a default system group
   const group = await prisma.group.upsert({
     where: { inviteCode: 'DEFAULT_GROUP' },
@@ -18,7 +29,7 @@ async function seed() {
       description: 'Default group with all curated content',
       inviteCode: 'DEFAULT_GROUP',
       isDefault: true,
-      createdById: 'system', // Will be updated when first user joins
+      createdById: systemUser.id,
     },
   });
 

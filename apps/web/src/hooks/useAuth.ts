@@ -38,7 +38,7 @@ export function useAuth() {
           const userData = await api.post<{ data: User }>("/auth/verify", {
             idToken: token,
           });
-          setUser((userData as any).data || userData as any);
+          setUser((userData as { data?: User }).data || (userData as unknown as User));
         } catch (err) {
           console.error("Failed to sync user:", err);
         }

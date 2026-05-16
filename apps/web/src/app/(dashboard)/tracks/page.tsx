@@ -5,10 +5,9 @@
  */
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ChevronRight, Star, BookOpen, FolderTree } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChevronRight, Star, FolderTree } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 // Mock data — replaced by API in production
 const TRACKS = [
@@ -114,7 +113,7 @@ export default function TracksPage() {
 
               {/* Categories */}
               <CardContent className="py-2">
-                {track.categories.map((cat, i) => {
+                {track.categories.map((cat) => {
                   const catPct = cat.total > 0 ? Math.round((cat.completed / cat.total) * 100) : 0;
                   return (
                     <Link

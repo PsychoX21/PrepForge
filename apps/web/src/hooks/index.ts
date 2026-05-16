@@ -3,7 +3,7 @@
 /**
  * Reusable hooks barrel export.
  */
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -33,7 +33,7 @@ export function useSocket() {
 
     const connect = async () => {
       const token = await firebaseUser.getIdToken();
-      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3001";
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:4001";
 
       socketInstance = io(wsUrl, {
         auth: { token },
@@ -94,7 +94,7 @@ export function useProgress() {
         ? `/progress/summary?groupId=${groupId}`
         : "/progress/summary";
       const data = await api.get(url);
-      setSummary(data as any);
+      setSummary(data as typeof summary);
     } catch (err) {
       console.error("Failed to fetch progress summary:", err);
     } finally {

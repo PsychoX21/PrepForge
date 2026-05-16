@@ -160,6 +160,7 @@ export function Sidebar({ onLogout, userName, userPhoto, userLevel }: SidebarPro
           <div className="flex items-center gap-3 px-2 py-2 mb-2">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-blue to-accent-purple flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
               {userPhoto ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={userPhoto} alt="" className="w-full h-full rounded-full object-cover" />
               ) : (
                 userName.charAt(0).toUpperCase()

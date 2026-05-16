@@ -4,7 +4,7 @@
  * Starred items page — items the user has starred.
  */
 import { motion } from "framer-motion";
-import { Star, ExternalLink, BookOpen } from "lucide-react";
+import { Star } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/common";

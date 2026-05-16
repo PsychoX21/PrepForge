@@ -54,7 +54,7 @@ FIREBASE_PRIVATE_KEY="<your-private-key-with-\n-newlines>"
 # Security & CORS
 JWT_SECRET=<generate-a-strong-secret-key>
 CORS_ORIGIN=https://prepforge.vercel.app  # URL of your Vercel frontend
-PORT=3001
+PORT=4001
 ```
 
 6. **Database Migration & Seeding:**
@@ -102,7 +102,7 @@ After both services are deployed:
 
 To run this stack locally, ensure you have a `.env` file at the root or within both `apps/web` and `server/` with your local connection strings.
 - **Backend:** PostgreSQL must be running locally or via Docker.
-- **Frontend:** Make sure `NEXT_PUBLIC_API_URL` points to `http://localhost:3001/api`.
+- **Frontend:** Make sure `NEXT_PUBLIC_API_URL` points to `http://localhost:4001/api`.
 
 Run the development servers:
 ```bash

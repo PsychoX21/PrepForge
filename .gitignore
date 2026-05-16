@@ -40,6 +40,3 @@ server/prisma/migrations/
 # Misc
 *.tsbuildinfo
 next-env.d.ts
-
-# Fish game (reference only)
-Fish/

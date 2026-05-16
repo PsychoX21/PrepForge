@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class TracksService {
@@ -19,44 +20,53 @@ export class TracksService {
       orderBy: { order: 'asc' },
     });
 
-    // Attach progress counts per track
-    return Promise.all(
-      tracks.map(async (track) => {
-        const allItems = await this.prisma.item.count({
-          where: {
-            subUnit: {
-              unit: {
-                resource: {
-                  category: { trackId: track.id },
-                },
-              },
-            },
-          },
-        });
+    if (tracks.length === 0) return [];
 
-        const doneItems = await this.prisma.userItemProgress.count({
-          where: {
-            userId,
-            status: 'DONE',
-            item: {
-              subUnit: {
-                unit: {
-                  resource: {
-                    category: { trackId: track.id },
-                  },
-                },
-              },
-            },
-          },
-        });
+    const trackIds = tracks.map((t) => t.id);
 
-        return {
-          ...track,
-          totalItems: allItems,
-          completedItems: doneItems,
-        };
-      }),
+    // One query for all item counts across all tracks
+    const itemCountsRaw = await this.prisma.$queryRaw<
+      { trackId: string; count: bigint }[]
+    >`
+      SELECT c."trackId", COUNT(i.id) as count
+      FROM "Item" i
+      JOIN "SubUnit" s ON i."subUnitId" = s.id
+      JOIN "Unit" u ON s."unitId" = u.id
+      JOIN "Resource" r ON u."resourceId" = r.id
+      JOIN "Category" c ON r."categoryId" = c.id
+      WHERE c."trackId" IN (${Prisma.join(trackIds)})
+      GROUP BY c."trackId"
+    `;
+
+    // One query for all done-item counts
+    const doneCountsRaw = await this.prisma.$queryRaw<
+      { trackId: string; count: bigint }[]
+    >`
+      SELECT c."trackId", COUNT(p.id) as count
+      FROM "UserItemProgress" p
+      JOIN "Item" i ON p."itemId" = i.id
+      JOIN "SubUnit" s ON i."subUnitId" = s.id
+      JOIN "Unit" u ON s."unitId" = u.id
+      JOIN "Resource" r ON u."resourceId" = r.id
+      JOIN "Category" c ON r."categoryId" = c.id
+      WHERE c."trackId" IN (${Prisma.join(trackIds)})
+      AND p."userId" = ${userId}
+      AND p.status = 'DONE'
+      GROUP BY c."trackId"
+    `;
+
+    const itemCountsMap = new Map(
+      itemCountsRaw.map((r) => [r.trackId, Number(r.count)]),
     );
+    const doneCountsMap = new Map(
+      doneCountsRaw.map((r) => [r.trackId, Number(r.count)]),
+    );
+
+    return tracks.map((track) => ({
+      ...track,
+      totalItems: itemCountsMap.get(track.id) || 0,
+      completedItems: doneCountsMap.get(track.id) || 0,
+    }));
   }
 
   async getFullTree(trackId: string, userId: string) {

@@ -3,6 +3,7 @@
 /**
  * Dashboard page — main overview showing tracks, stats, and activity.
  */
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Flame,
@@ -89,6 +90,17 @@ const fadeUp = {
 export default function DashboardPage() {
   const completionPct = Math.round(
     (MOCK_STATS.totalCompleted / MOCK_STATS.totalItems) * 100
+  );
+
+  const HEATMAP_DATA = useMemo(
+    () =>
+      Array.from({ length: 52 }, (_, week) =>
+        Array.from({ length: 7 }, (_, day) => 
+          // Deterministic pseudo-random generation to prevent SSR Hydration Mismatch
+          Math.abs(Math.sin(week * 13 + day * 7)) * 0.9 + 0.1
+        )
+      ),
+    []
   );
 
   return (
@@ -311,7 +323,7 @@ export default function DashboardPage() {
               {Array.from({ length: 52 }, (_, week) => (
                 <div key={week} className="flex flex-col gap-[3px]">
                   {Array.from({ length: 7 }, (_, day) => {
-                    const intensity = Math.random();
+                    const intensity = HEATMAP_DATA[week][day];
                     const level =
                       intensity > 0.8
                         ? 4
@@ -332,8 +344,8 @@ export default function DashboardPage() {
                     return (
                       <div
                         key={day}
-                        className={`w-[14px] h-[14px] rounded-[3px] ${colors[level]} transition-colors hover:ring-1 hover:ring-accent-blue/50`}
-                        title={`${level} activities`}
+                        className={`w-[14px] h-[14px] rounded-[3px] ${colors[level]} transition-colors hover:ring-1 hover:ring-white/30`}
+                        title={`${Math.floor(intensity * 15)} activities`}
                       />
                     );
                   })}

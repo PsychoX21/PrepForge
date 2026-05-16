@@ -65,7 +65,7 @@ export function Sidebar({ onLogout, userName, userPhoto, userLevel }: SidebarPro
       )}
     >
       {/* Logo */}
-      <div className="h-16 flex items-center gap-2.5 px-4 border-b border-border-default/50 flex-shrink-0">
+      <Link href="/" className="h-16 flex items-center gap-2.5 px-4 border-b border-border-default/50 flex-shrink-0 hover:bg-white/[0.02] transition-colors">
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-blue to-accent-purple flex items-center justify-center flex-shrink-0">
           <Flame className="w-4 h-4 text-white animate-flame" />
         </div>
@@ -82,7 +82,7 @@ export function Sidebar({ onLogout, userName, userPhoto, userLevel }: SidebarPro
             </motion.span>
           )}
         </AnimatePresence>
-      </div>
+      </Link>
 
       {/* Main Nav */}
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto no-scrollbar">

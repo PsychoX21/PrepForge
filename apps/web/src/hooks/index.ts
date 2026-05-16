@@ -23,6 +23,7 @@ export function useDebounce<T>(value: T, delay: number): T {
 // ─── useSocket ──────────────────────────────────────────────────────────────
 
 let socketInstance: Socket | null = null;
+let consumerCount = 0;  // reference count
 
 export function useSocket() {
   const [isConnected, setIsConnected] = useState(false);
@@ -31,10 +32,20 @@ export function useSocket() {
   useEffect(() => {
     if (!firebaseUser) return;
 
-    const connect = async () => {
-      const token = await firebaseUser.getIdToken();
-      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:4001";
+    let isMounted = true;  // cancellation flag for the async race
+    consumerCount++;
 
+    const connect = async () => {
+      if (socketInstance) {
+        if (isMounted) setIsConnected(socketInstance.connected);
+        return;
+      }
+
+      const token = await firebaseUser.getIdToken();
+
+      if (!isMounted) return;
+
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:4001";
       socketInstance = io(wsUrl, {
         auth: { token },
         transports: ["websocket"],
@@ -43,15 +54,24 @@ export function useSocket() {
         reconnectionAttempts: 10,
       });
 
-      socketInstance.on("connect", () => setIsConnected(true));
-      socketInstance.on("disconnect", () => setIsConnected(false));
+      socketInstance.on("connect", () => {
+        if (isMounted) setIsConnected(true);
+      });
+      socketInstance.on("disconnect", () => {
+        if (isMounted) setIsConnected(false);
+      });
     };
 
     connect();
 
     return () => {
-      socketInstance?.disconnect();
-      socketInstance = null;
+      isMounted = false;
+      consumerCount--;
+
+      if (consumerCount === 0) {
+        socketInstance?.disconnect();
+        socketInstance = null;
+      }
     };
   }, [firebaseUser]);
 
@@ -64,9 +84,10 @@ export function useSocket() {
 
   const on = useCallback(
     (event: string, callback: (...args: unknown[]) => void) => {
-      socketInstance?.on(event, callback);
+      const capturedSocket = socketInstance;
+      capturedSocket?.on(event, callback);
       return () => {
-        socketInstance?.off(event, callback);
+        capturedSocket?.off(event, callback);
       };
     },
     []

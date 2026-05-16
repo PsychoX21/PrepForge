@@ -33,39 +33,49 @@ export class GamificationService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Award XP for an action and check for level-ups.
-   * Also logs the activity for heatmap tracking.
+   * Award XP for multiple actions and check for level-ups.
+   * Batches DB writes to prevent connection exhaustion.
    */
-  async awardXP(userId: string, action: string) {
-    const xpAmount = XP_TABLE[action] || 0;
-    if (xpAmount === 0) return;
+  async awardXP(userId: string, actions: string[]) {
+    const totalXp = actions.reduce((sum, a) => sum + (XP_TABLE[a] || 0), 0);
+    if (totalXp === 0) return;
 
     // Update user XP
     const user = await this.prisma.user.update({
       where: { id: userId },
-      data: { xp: { increment: xpAmount } },
+      data: { xp: { increment: totalXp } },
     });
 
-    // Check for level-up
     const newLevel = this.calculateLevel(user.xp);
+    const updates: Promise<unknown>[] = [];
+
+    // Check for level-up
     if (newLevel > user.level) {
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: { level: newLevel },
-      });
+      updates.push(
+        this.prisma.user.update({
+          where: { id: userId },
+          data: { level: newLevel },
+        }),
+      );
       this.logger.log(`🎉 User ${userId} leveled up to ${newLevel}!`);
     }
 
-    // Log activity
-    await this.prisma.activityLog.create({
-      data: {
-        userId,
-        action,
-        xpAwarded: xpAmount,
-      },
-    });
+    // Batch all activity log entries in one createMany
+    const validActions = actions.filter((a) => XP_TABLE[a]);
+    if (validActions.length > 0) {
+      updates.push(
+        this.prisma.activityLog.createMany({
+          data: validActions.map((a) => ({
+            userId,
+            action: a,
+            xpAwarded: XP_TABLE[a],
+          })),
+        }),
+      );
+    }
 
-    return { xpAwarded: xpAmount, totalXp: user.xp, level: newLevel };
+    await Promise.all(updates);
+    return { xpAwarded: totalXp, totalXp: user.xp, level: newLevel };
   }
 
   /**
@@ -107,13 +117,15 @@ export class GamificationService {
         },
       });
 
-      // Award daily login XP
-      await this.awardXP(userId, 'DAILY_LOGIN');
+      const actionsToAward = ['DAILY_LOGIN'];
 
       // Check streak milestones
-      if (newStreak === 7) await this.awardXP(userId, 'STREAK_BONUS_7');
-      if (newStreak === 30) await this.awardXP(userId, 'STREAK_BONUS_30');
-      if (newStreak === 100) await this.awardXP(userId, 'STREAK_BONUS_100');
+      if (newStreak === 7) actionsToAward.push('STREAK_BONUS_7');
+      if (newStreak === 30) actionsToAward.push('STREAK_BONUS_30');
+      if (newStreak === 100) actionsToAward.push('STREAK_BONUS_100');
+
+      // Award all XP in one batch
+      await this.awardXP(userId, actionsToAward);
     }
 
     return { streak: newStreak };

@@ -43,7 +43,7 @@ export class ProgressService {
 
     // Award XP if item was just marked done
     if (data.status === 'DONE') {
-      await this.gamification.awardXP(userId, 'MARK_ITEM_DONE');
+      await this.gamification.awardXP(userId, ['MARK_ITEM_DONE']);
     }
 
     return progress;

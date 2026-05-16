@@ -67,7 +67,18 @@ export function Topbar({ title, subtitle }: TopbarProps) {
           </Button>
 
           {/* Notifications */}
-          <Button variant="ghost" size="icon-sm" aria-label="Notifications">
+          <Button 
+            variant="ghost" 
+            size="icon-sm" 
+            aria-label="Notifications"
+            onClick={() => {
+              useUIStore.getState().addToast({
+                title: "You're all caught up!",
+                message: "No new notifications right now.",
+                type: "info"
+              });
+            }}
+          >
             <div className="relative">
               <Bell className="w-4 h-4" />
               <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-accent-blue rounded-full" />

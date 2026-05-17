@@ -137,7 +137,15 @@ export class GroupsService {
     return { inviteCode, expiresAt: inviteExpiry };
   }
 
-  async getLeaderboard(groupId: string) {
+  async getLeaderboard(groupId: string, userId: string) {
+    // Verify user is a member of the group
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId } },
+    });
+    if (!isMember) {
+      throw new ForbiddenException('Not a member of this group');
+    }
+
     const members = await this.prisma.groupMember.findMany({
       where: { groupId },
       include: {

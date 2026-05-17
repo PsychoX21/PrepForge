@@ -1,12 +1,14 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { FirebaseAdminService } from './firebase-admin.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { GamificationService } from '../gamification/gamification.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly firebaseAdmin: FirebaseAdminService,
     private readonly prisma: PrismaService,
+    private readonly gamification: GamificationService,
   ) {}
 
   /**
@@ -31,6 +33,9 @@ export class AuthService {
           photoUrl: decoded.picture || null,
         },
       });
+
+      // Update login streak and award daily XP
+      await this.gamification.processLogin(user.id);
 
       return user;
     } catch {

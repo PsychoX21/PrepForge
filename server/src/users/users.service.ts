@@ -59,20 +59,21 @@ export class UsersService {
     const since = new Date();
     since.setDate(since.getDate() - days);
 
-    const activities = await this.prisma.activityLog.groupBy({
-      by: ['createdAt'],
+      const activities = await this.prisma.activityLog.findMany({
       where: {
         userId,
         createdAt: { gte: since },
       },
-      _count: true,
+      select: {
+        createdAt: true,
+      },
     });
 
     // Build day-level aggregation
     const heatmap: Record<string, number> = {};
     activities.forEach((a) => {
       const date = a.createdAt.toISOString().split('T')[0];
-      heatmap[date] = (heatmap[date] || 0) + a._count;
+      heatmap[date] = (heatmap[date] || 0) + 1;
     });
 
     return Object.entries(heatmap).map(([date, count]) => ({

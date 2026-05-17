@@ -20,6 +20,15 @@ export class ProgressService {
       completion?: number;
     },
   ) {
+    // Check existing progress status to prevent XP double-award
+    const existing = await this.prisma.userItemProgress.findUnique({
+      where: {
+        userId_itemId: { userId, itemId },
+      },
+      select: { status: true },
+    });
+    const wasAlreadyDone = existing?.status === 'DONE';
+
     const progress = await this.prisma.userItemProgress.upsert({
       where: {
         userId_itemId: { userId, itemId },
@@ -41,8 +50,8 @@ export class ProgressService {
       },
     });
 
-    // Award XP if item was just marked done
-    if (data.status === 'DONE') {
+    // Award XP if item is transitionally marked done
+    if (data.status === 'DONE' && !wasAlreadyDone) {
       await this.gamification.awardXP(userId, ['MARK_ITEM_DONE']);
     }
 

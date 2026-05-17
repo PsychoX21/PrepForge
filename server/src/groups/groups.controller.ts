@@ -35,7 +35,16 @@ export class GroupsController {
     return this.groupsService.findOne(id, user.id);
   }
 
-  /** POST /api/groups/:id/join — Join a group via invite code */
+  /** POST /api/groups/join/:inviteCode — Join a group via invite code */
+  @Post('join/:inviteCode')
+  joinByCode(
+    @Param('inviteCode') inviteCode: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.groupsService.joinByInvite(inviteCode, user.id);
+  }
+
+  /** POST /api/groups/:id/join — Join a group via invite code (compatibility fallback) */
   @Post(':id/join')
   join(
     @Param('id') inviteCode: string,
@@ -52,7 +61,7 @@ export class GroupsController {
 
   /** GET /api/groups/:id/leaderboard — Get group leaderboard */
   @Get(':id/leaderboard')
-  getLeaderboard(@Param('id') id: string) {
-    return this.groupsService.getLeaderboard(id);
+  getLeaderboard(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.groupsService.getLeaderboard(id, user.id);
   }
 }

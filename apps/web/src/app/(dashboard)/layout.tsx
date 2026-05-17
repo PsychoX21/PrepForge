@@ -6,6 +6,7 @@
  */
 import { AppShell } from "@/components/layout";
 import { useAuth } from "@/hooks/useAuth";
+import { AuthGuard } from "@/components/auth";
 
 export default function DashboardLayout({
   children,
@@ -15,15 +16,17 @@ export default function DashboardLayout({
   const { user, logout } = useAuth();
 
   return (
-    <AppShell
-      title="Dashboard"
-      subtitle={user ? `Welcome back, ${user.displayName.split(" ")[0]}` : "Welcome back"}
-      userName={user?.displayName ?? "User"}
-      userPhoto={user?.photoUrl ?? null}
-      userLevel={user?.level ?? 1}
-      onLogout={logout}
-    >
-      {children}
-    </AppShell>
+    <AuthGuard>
+      <AppShell
+        title="Dashboard"
+        subtitle={user ? `Welcome back, ${user.displayName.split(" ")[0]}` : "Welcome back"}
+        userName={user?.displayName ?? "User"}
+        userPhoto={user?.photoUrl ?? null}
+        userLevel={user?.level ?? 1}
+        onLogout={logout}
+      >
+        {children}
+      </AppShell>
+    </AuthGuard>
   );
 }

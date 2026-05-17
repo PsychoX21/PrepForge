@@ -13,6 +13,7 @@ import { ProgressModule } from './progress/progress.module';
 import { GamificationModule } from './gamification/gamification.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { SeedModule } from './seed/seed.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -24,6 +25,9 @@ import { SeedModule } from './seed/seed.module';
 
     // Database
     PrismaModule,
+
+    // Global Redis caching layer
+    RedisModule,
 
     // Feature modules
     AuthModule,

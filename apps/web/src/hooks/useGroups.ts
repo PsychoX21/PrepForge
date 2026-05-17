@@ -131,7 +131,7 @@ export function useCreateGroup() {
   const [error, setError] = useState<string | null>(null);
 
   const create = useCallback(
-    async (dto: { name: string; description?: string }): Promise<Group | null> => {
+    async (dto: { name: string; description?: string; useDefaultContent?: boolean }): Promise<Group | null> => {
       setIsLoading(true);
       setError(null);
       try {

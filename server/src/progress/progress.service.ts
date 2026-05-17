@@ -2,12 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { GamificationService } from '../gamification/gamification.service';
 import { ProgressStatus } from '@prisma/client';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class ProgressService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gamification: GamificationService,
+    private readonly redis: RedisService,
   ) {}
 
   async updateProgress(
@@ -58,6 +60,9 @@ export class ProgressService {
     if (data.status === 'DONE' && !wasAlreadyDone) {
       await this.gamification.awardXP(userId, ['MARK_ITEM_DONE']);
     }
+
+    // Invalidate cached track trees and summary stats
+    await this.redis.invalidateUserPatterns(userId);
 
     return progress;
   }

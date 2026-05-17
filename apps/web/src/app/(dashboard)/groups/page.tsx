@@ -28,13 +28,24 @@ export default function GroupsPage() {
   const [showJoin, setShowJoin] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createDesc, setCreateDesc] = useState("");
+  const [useDefault, setUseDefault] = useState(true);
   const [inviteCode, setInviteCode] = useState("");
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const handleCreate = async () => {
     if (!createName.trim()) return;
-    const result = await create({ name: createName, description: createDesc });
-    if (result) { refetch(); setShowCreate(false); setCreateName(""); setCreateDesc(""); }
+    const result = await create({
+      name: createName,
+      description: createDesc,
+      useDefaultContent: useDefault,
+    });
+    if (result) {
+      refetch();
+      setShowCreate(false);
+      setCreateName("");
+      setCreateDesc("");
+      setUseDefault(true);
+    }
   };
 
   const handleJoin = async () => {
@@ -80,6 +91,15 @@ export default function GroupsPage() {
               <input
                 className="w-full px-3 py-2 text-sm bg-bg-elevated border border-border-default rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-blue"
                 placeholder="Description (optional)" value={createDesc} onChange={(e) => setCreateDesc(e.target.value)} />
+              <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer select-none py-1">
+                <input
+                  type="checkbox"
+                  checked={useDefault}
+                  onChange={(e) => setUseDefault(e.target.checked)}
+                  className="rounded border-border-default bg-bg-elevated text-accent-blue focus:ring-accent-blue w-4 h-4"
+                />
+                Populate Group with default study tracks (LeetCode, SWE Core Systems)
+              </label>
               <div className="flex gap-2">
                 <Button variant="primary" size="sm" onClick={handleCreate} isLoading={creating}>Create</Button>
                 <Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>Cancel</Button>

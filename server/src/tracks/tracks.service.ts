@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class TracksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
 
   async findByGroup(groupId: string, userId: string) {
     const tracks = await this.prisma.track.findMany({
@@ -86,6 +90,10 @@ export class TracksService {
   }
 
   async getFullTree(trackId: string, userId: string) {
+    const cacheKey = `track:${trackId}:user:${userId}:tree`;
+    const cached = await this.redis.get<any>(cacheKey);
+    if (cached) return cached;
+
     const track = await this.prisma.track.findUnique({
       where: { id: trackId },
     });
@@ -153,13 +161,20 @@ export class TracksService {
       })),
     }));
 
-    return {
+    const result = {
       ...fullTrack,
       categories: mappedCategories,
     };
+
+    await this.redis.set(cacheKey, result, 3600);
+    return result;
   }
 
   async getTrackSummary(trackId: string, userId: string) {
+    const cacheKey = `track:${trackId}:user:${userId}:summary`;
+    const cached = await this.redis.get<any>(cacheKey);
+    if (cached) return cached;
+
     const [track, totalItems, doneItems, starredItems] = await this.prisma.$transaction([
       this.prisma.track.findUnique({
         where: { id: trackId },
@@ -229,7 +244,7 @@ export class TracksService {
     });
     if (!isMember) throw new ForbiddenException('Access denied');
 
-    return {
+    const result = {
       ...track,
       totalItems,
       completedItems: doneItems,
@@ -238,5 +253,398 @@ export class TracksService {
         ? Math.round((doneItems / totalItems) * 100)
         : 0,
     };
+
+    await this.redis.set(cacheKey, result, 3600);
+    return result;
+  }
+
+  // ─── Custom CRUD: Tracks ──────────────────────────────────────────────────
+
+  async createTrack(userId: string, data: { groupId: string; name: string; description?: string; icon?: string; color?: string; order?: number }) {
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: data.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const track = await this.prisma.track.create({
+      data: {
+        name: data.name,
+        description: data.description || null,
+        icon: data.icon || '📚',
+        color: data.color || '#3b82f6',
+        order: data.order || 0,
+        groupId: data.groupId,
+      },
+    });
+
+    await this.redis.invalidateTrackPatterns(track.id);
+    return track;
+  }
+
+  async updateTrack(userId: string, trackId: string, data: { name?: string; description?: string; icon?: string; color?: string; order?: number }) {
+    const track = await this.prisma.track.findUnique({ where: { id: trackId } });
+    if (!track) throw new NotFoundException('Track not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: track.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const updated = await this.prisma.track.update({
+      where: { id: trackId },
+      data,
+    });
+
+    await this.redis.invalidateTrackPatterns(trackId);
+    return updated;
+  }
+
+  async deleteTrack(userId: string, trackId: string) {
+    const track = await this.prisma.track.findUnique({ where: { id: trackId } });
+    if (!track) throw new NotFoundException('Track not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: track.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const deleted = await this.prisma.track.delete({ where: { id: trackId } });
+
+    await this.redis.invalidateTrackPatterns(trackId);
+    return deleted;
+  }
+
+  // ─── Custom CRUD: Categories ──────────────────────────────────────────────
+
+  async createCategory(userId: string, trackId: string, data: { name: string; description?: string; icon?: string; order?: number }) {
+    const track = await this.prisma.track.findUnique({ where: { id: trackId } });
+    if (!track) throw new NotFoundException('Track not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: track.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const cat = await this.prisma.category.create({
+      data: {
+        name: data.name,
+        description: data.description || null,
+        icon: data.icon || '📚',
+        order: data.order || 0,
+        trackId,
+      },
+    });
+
+    await this.redis.invalidateTrackPatterns(trackId);
+    return cat;
+  }
+
+  async updateCategory(userId: string, catId: string, data: { name?: string; description?: string; icon?: string; order?: number }) {
+    const cat = await this.prisma.category.findUnique({
+      where: { id: catId },
+      include: { track: true },
+    });
+    if (!cat) throw new NotFoundException('Category not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: cat.track.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const updated = await this.prisma.category.update({
+      where: { id: catId },
+      data,
+    });
+
+    await this.redis.invalidateTrackPatterns(cat.trackId);
+    return updated;
+  }
+
+  async deleteCategory(userId: string, catId: string) {
+    const cat = await this.prisma.category.findUnique({
+      where: { id: catId },
+      include: { track: true },
+    });
+    if (!cat) throw new NotFoundException('Category not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: cat.track.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const deleted = await this.prisma.category.delete({ where: { id: catId } });
+
+    await this.redis.invalidateTrackPatterns(cat.trackId);
+    return deleted;
+  }
+
+  // ─── Custom CRUD: Resources ───────────────────────────────────────────────
+
+  async createResource(userId: string, catId: string, data: { name: string; description?: string; type: string; url?: string; isMustDo?: boolean; order?: number }) {
+    const cat = await this.prisma.category.findUnique({
+      where: { id: catId },
+      include: { track: true },
+    });
+    if (!cat) throw new NotFoundException('Category not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: cat.track.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const res = await this.prisma.resource.create({
+      data: {
+        name: data.name,
+        description: data.description || null,
+        type: data.type as any,
+        url: data.url || null,
+        isMustDo: data.isMustDo || false,
+        order: data.order || 0,
+        categoryId: catId,
+      },
+    });
+
+    await this.redis.invalidateTrackPatterns(cat.trackId);
+    return res;
+  }
+
+  async updateResource(userId: string, resId: string, data: { name?: string; description?: string; type?: string; url?: string; isMustDo?: boolean; order?: number }) {
+    const res = await this.prisma.resource.findUnique({
+      where: { id: resId },
+      include: { category: { include: { track: true } } },
+    });
+    if (!res) throw new NotFoundException('Resource not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: res.category.track.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const updated = await this.prisma.resource.update({
+      where: { id: resId },
+      data: data as any,
+    });
+
+    await this.redis.invalidateTrackPatterns(res.category.trackId);
+    return updated;
+  }
+
+  async deleteResource(userId: string, resId: string) {
+    const res = await this.prisma.resource.findUnique({
+      where: { id: resId },
+      include: { category: { include: { track: true } } },
+    });
+    if (!res) throw new NotFoundException('Resource not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: res.category.track.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const deleted = await this.prisma.resource.delete({ where: { id: resId } });
+
+    await this.redis.invalidateTrackPatterns(res.category.trackId);
+    return deleted;
+  }
+
+  // ─── Custom CRUD: Units ───────────────────────────────────────────────────
+
+  async createUnit(userId: string, resId: string, data: { name: string; description?: string; order?: number }) {
+    const res = await this.prisma.resource.findUnique({
+      where: { id: resId },
+      include: { category: { include: { track: true } } },
+    });
+    if (!res) throw new NotFoundException('Resource not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: res.category.track.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const unit = await this.prisma.unit.create({
+      data: {
+        name: data.name,
+        description: data.description || null,
+        order: data.order || 0,
+        resourceId: resId,
+      },
+    });
+
+    await this.redis.invalidateTrackPatterns(res.category.trackId);
+    return unit;
+  }
+
+  async updateUnit(userId: string, unitId: string, data: { name?: string; description?: string; order?: number }) {
+    const unit = await this.prisma.unit.findUnique({
+      where: { id: unitId },
+      include: { resource: { include: { category: { include: { track: true } } } } },
+    });
+    if (!unit) throw new NotFoundException('Unit not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: unit.resource.category.track.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const updated = await this.prisma.unit.update({
+      where: { id: unitId },
+      data,
+    });
+
+    await this.redis.invalidateTrackPatterns(unit.resource.category.trackId);
+    return updated;
+  }
+
+  async deleteUnit(userId: string, unitId: string) {
+    const unit = await this.prisma.unit.findUnique({
+      where: { id: unitId },
+      include: { resource: { include: { category: { include: { track: true } } } } },
+    });
+    if (!unit) throw new NotFoundException('Unit not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: unit.resource.category.track.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const deleted = await this.prisma.unit.delete({ where: { id: unitId } });
+
+    await this.redis.invalidateTrackPatterns(unit.resource.category.trackId);
+    return deleted;
+  }
+
+  // ─── Custom CRUD: SubUnits ────────────────────────────────────────────────
+
+  async createSubUnit(userId: string, unitId: string, data: { name: string; description?: string; order?: number }) {
+    const unit = await this.prisma.unit.findUnique({
+      where: { id: unitId },
+      include: { resource: { include: { category: { include: { track: true } } } } },
+    });
+    if (!unit) throw new NotFoundException('Unit not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: unit.resource.category.track.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const sub = await this.prisma.subUnit.create({
+      data: {
+        name: data.name,
+        description: data.description || null,
+        order: data.order || 0,
+        unitId,
+      },
+    });
+
+    await this.redis.invalidateTrackPatterns(unit.resource.category.trackId);
+    return sub;
+  }
+
+  async updateSubUnit(userId: string, subId: string, data: { name?: string; description?: string; order?: number }) {
+    const sub = await this.prisma.subUnit.findUnique({
+      where: { id: subId },
+      include: { unit: { include: { resource: { include: { category: { include: { track: true } } } } } } },
+    });
+    if (!sub) throw new NotFoundException('SubUnit not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: sub.unit.resource.category.track.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const updated = await this.prisma.subUnit.update({
+      where: { id: subId },
+      data,
+    });
+
+    await this.redis.invalidateTrackPatterns(sub.unit.resource.category.trackId);
+    return updated;
+  }
+
+  async deleteSubUnit(userId: string, subId: string) {
+    const sub = await this.prisma.subUnit.findUnique({
+      where: { id: subId },
+      include: { unit: { include: { resource: { include: { category: { include: { track: true } } } } } } },
+    });
+    if (!sub) throw new NotFoundException('SubUnit not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: sub.unit.resource.category.track.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const deleted = await this.prisma.subUnit.delete({ where: { id: subId } });
+
+    await this.redis.invalidateTrackPatterns(sub.unit.resource.category.trackId);
+    return deleted;
+  }
+
+  // ─── Custom CRUD: Items ───────────────────────────────────────────────────
+
+  async createItem(userId: string, subId: string, data: { name: string; description?: string; type: string; url?: string; difficulty?: string; order?: number }) {
+    const sub = await this.prisma.subUnit.findUnique({
+      where: { id: subId },
+      include: { unit: { include: { resource: { include: { category: { include: { track: true } } } } } } },
+    });
+    if (!sub) throw new NotFoundException('SubUnit not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: sub.unit.resource.category.track.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const item = await this.prisma.item.create({
+      data: {
+        name: data.name,
+        description: data.description || null,
+        type: data.type as any,
+        url: data.url || null,
+        difficulty: (data.difficulty as any) || null,
+        order: data.order || 0,
+        subUnitId: subId,
+      },
+    });
+
+    await this.redis.invalidateTrackPatterns(sub.unit.resource.category.trackId);
+    return item;
+  }
+
+  async updateItem(userId: string, itemId: string, data: { name?: string; description?: string; type?: string; url?: string; difficulty?: string; order?: number }) {
+    const item = await this.prisma.item.findUnique({
+      where: { id: itemId },
+      include: { subUnit: { include: { unit: { include: { resource: { include: { category: { include: { track: true } } } } } } } } },
+    });
+    if (!item) throw new NotFoundException('Item not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: item.subUnit.unit.resource.category.track.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const updated = await this.prisma.item.update({
+      where: { id: itemId },
+      data: data as any,
+    });
+
+    await this.redis.invalidateTrackPatterns(item.subUnit.unit.resource.category.trackId);
+    return updated;
+  }
+
+  async deleteItem(userId: string, itemId: string) {
+    const item = await this.prisma.item.findUnique({
+      where: { id: itemId },
+      include: { subUnit: { include: { unit: { include: { resource: { include: { category: { include: { track: true } } } } } } } } },
+    });
+    if (!item) throw new NotFoundException('Item not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId: item.subUnit.unit.resource.category.track.groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const deleted = await this.prisma.item.delete({ where: { id: itemId } });
+
+    await this.redis.invalidateTrackPatterns(item.subUnit.unit.resource.category.trackId);
+    return deleted;
   }
 }

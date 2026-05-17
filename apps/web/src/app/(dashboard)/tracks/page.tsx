@@ -2,21 +2,17 @@
 
 /**
  * Tracks listing page — fetches all tracks for the user's active group.
+ * Allows members to create, edit, or delete custom tracks.
  */
+import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ChevronRight, Star, FolderTree, AlertCircle } from "lucide-react";
+import { ChevronRight, Star, FolderTree, AlertCircle, Plus, Edit2, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useTracks } from "@/hooks/useTracks";
+import { Button } from "@/components/ui/button";
+import { useTracks, useCreateTrack, useUpdateTrack, useDeleteTrack } from "@/hooks/useTracks";
 import { useAuthStore } from "@/stores/authStore";
-
-
-const TRACK_META: Record<string, { icon: string; color: string; description: string }> = {
-  "Quantitative Trader/Researcher": { icon: "📊", color: "#a78bfa", description: "Probability, puzzles, AI/ML, finance fundamentals, and speed math." },
-  "Software Engineer": { icon: "💻", color: "#58a6ff", description: "Competitive programming, systems knowledge, C++ mastery, and DSA." },
-  "Resume & General Prep": { icon: "📝", color: "#34d399", description: "Resume building, communication skills, mock interviews, and networking." },
-};
 
 const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
 const fadeUp = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
@@ -28,16 +24,165 @@ function Skeleton({ className = "" }: { className?: string }) {
 export default function TracksPage() {
   const { user } = useAuthStore();
   const groupId = user?.memberships?.[0]?.groupId ?? null;
-  const { data: tracks, isLoading, error } = useTracks(groupId);
+  const { data: tracks, isLoading, error, refetch } = useTracks(groupId);
+
+  const { create, isLoading: isCreating } = useCreateTrack();
+  const { update, isLoading: isUpdating } = useUpdateTrack();
+  const { remove, isLoading: isDeleting } = useDeleteTrack();
+
+  const [showForm, setShowForm] = useState(false);
+  const [editingTrack, setEditingTrack] = useState<any>(null);
+
+  const [trackName, setTrackName] = useState("");
+  const [trackDesc, setTrackDesc] = useState("");
+  const [trackIcon, setTrackIcon] = useState("📚");
+  const [trackColor, setTrackColor] = useState("#58a6ff");
+
+  const openCreateForm = () => {
+    setEditingTrack(null);
+    setTrackName("");
+    setTrackDesc("");
+    setTrackIcon("📚");
+    setTrackColor("#58a6ff");
+    setShowForm(true);
+  };
+
+  const openEditForm = (track: any) => {
+    setEditingTrack(track);
+    setTrackName(track.name);
+    setTrackDesc(track.description || "");
+    setTrackIcon(track.icon || "📚");
+    setTrackColor(track.color || "#58a6ff");
+    setShowForm(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!groupId || !trackName.trim()) return;
+
+    try {
+      if (editingTrack) {
+        await update(editingTrack.id, {
+          name: trackName,
+          description: trackDesc,
+          icon: trackIcon,
+          color: trackColor,
+        });
+      } else {
+        await create({
+          groupId,
+          name: trackName,
+          description: trackDesc,
+          icon: trackIcon,
+          color: trackColor,
+        });
+      }
+      refetch();
+      setShowForm(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDelete = async (trackId: string) => {
+    if (!confirm("Are you sure you want to delete this track and all its nested categories/resources?")) return;
+    try {
+      await remove(trackId);
+      refetch();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold font-[var(--font-outfit)]">Your Tracks</h1>
-        <p className="text-sm text-text-secondary mt-1">
-          Explore the complete resource hierarchy. Click any category to drill down.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold font-[var(--font-outfit)]">Your Tracks</h1>
+          <p className="text-sm text-text-secondary mt-1">
+            Explore the complete resource hierarchy. Click any category to drill down or customize.
+          </p>
+        </div>
+        {groupId && (
+          <Button variant="primary" size="sm" onClick={openCreateForm} className="w-fit">
+            <Plus className="w-4 h-4 mr-1.5" /> Add Custom Track
+          </Button>
+        )}
       </div>
+
+      {showForm && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
+          <Card variant="glass">
+            <CardContent className="py-6 space-y-4">
+              <h3 className="text-lg font-bold font-[var(--font-outfit)]">
+                {editingTrack ? "Edit Track" : "Create Custom Track"}
+              </h3>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-text-muted font-semibold block mb-1">TRACK NAME *</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 text-sm bg-bg-elevated border border-border-default rounded-lg text-text-primary focus:outline-none focus:border-accent-blue"
+                      placeholder="e.g. System Design Mastery"
+                      value={trackName}
+                      onChange={(e) => setTrackName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-text-muted font-semibold block mb-1">COLOR</label>
+                    <input
+                      type="color"
+                      className="w-full px-1 py-1 h-9 bg-bg-elevated border border-border-default rounded-lg text-text-primary focus:outline-none focus:border-accent-blue cursor-pointer"
+                      value={trackColor}
+                      onChange={(e) => setTrackColor(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-text-muted font-semibold block mb-1">ICON</label>
+                    <select
+                      className="w-full px-3 py-2 text-sm bg-bg-elevated border border-border-default rounded-lg text-text-primary focus:outline-none focus:border-accent-blue"
+                      value={trackIcon}
+                      onChange={(e) => setTrackIcon(e.target.value)}
+                    >
+                      <option value="📚">📚 Books</option>
+                      <option value="💻">💻 Code</option>
+                      <option value="📊">📊 Math/Finance</option>
+                      <option value="📝">📝 Writing</option>
+                      <option value="🚀">🚀 Rocket</option>
+                      <option value="💡">💡 Idea</option>
+                      <option value="🏆">🏆 Trophy</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-text-muted font-semibold block mb-1">DESCRIPTION</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 text-sm bg-bg-elevated border border-border-default rounded-lg text-text-primary focus:outline-none focus:border-accent-blue"
+                      placeholder="Brief overview of track contents..."
+                      value={trackDesc}
+                      onChange={(e) => setTrackDesc(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 justify-end pt-2">
+                  <Button variant="ghost" size="sm" type="button" onClick={() => setShowForm(false)}>
+                    Cancel
+                  </Button>
+                  <Button variant="primary" size="sm" type="submit" isLoading={isCreating || isUpdating}>
+                    {editingTrack ? "Save Changes" : "Create Track"}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {isLoading && (
         <div className="space-y-6">
@@ -63,10 +208,10 @@ export default function TracksPage() {
       )}
 
       {!isLoading && !error && (tracks ?? []).map((track) => {
-        const meta = TRACK_META[track.name] ?? { icon: "📚", color: "#58a6ff", description: "" };
         const total = track.totalItems ?? 0;
         const done = track.completedItems ?? 0;
         const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+        const trackColorStyle = track.color || "#58a6ff";
 
         return (
           <motion.div key={track.id} variants={fadeUp}>
@@ -74,24 +219,42 @@ export default function TracksPage() {
               {/* Track header */}
               <div
                 className="px-6 py-4 border-b border-border-default/50"
-                style={{ borderLeftWidth: 4, borderLeftColor: meta.color }}
+                style={{ borderLeftWidth: 4, borderLeftColor: trackColorStyle }}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{meta.icon}</span>
+                    <span className="text-2xl">{track.icon || "📚"}</span>
                     <div>
-                      <h2 className="text-lg font-semibold text-text-primary font-[var(--font-outfit)]">{track.name}</h2>
-                      <p className="text-xs text-text-muted">{meta.description || track.description}</p>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-semibold text-text-primary font-[var(--font-outfit)]">{track.name}</h2>
+                        <div className="flex items-center gap-1.5 opacity-0 hover:opacity-100 focus-within:opacity-100 transition-opacity ml-2">
+                          <button
+                            onClick={() => openEditForm(track)}
+                            className="p-1 hover:bg-bg-elevated rounded transition-colors text-text-muted hover:text-text-secondary"
+                            title="Edit Track"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(track.id)}
+                            className="p-1 hover:bg-red-500/10 rounded transition-colors text-red-400 hover:text-red-300"
+                            title="Delete Track"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-text-muted">{track.description}</p>
                     </div>
                   </div>
                   <div className="text-right hidden sm:block">
-                    <p className="text-xl font-bold" style={{ color: meta.color }}>{pct}%</p>
+                    <p className="text-xl font-bold" style={{ color: trackColorStyle }}>{pct}%</p>
                     <p className="text-xs text-text-muted">{done}/{total} items</p>
                   </div>
                 </div>
                 <div className="mt-3 h-2 bg-bg-elevated rounded-full overflow-hidden">
                   <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 1, delay: 0.3 }}
-                    className="h-full rounded-full" style={{ backgroundColor: meta.color }} />
+                    className="h-full rounded-full" style={{ backgroundColor: trackColorStyle }} />
                 </div>
               </div>
 
@@ -108,7 +271,7 @@ export default function TracksPage() {
                       <FolderTree className="w-4 h-4 text-text-muted group-hover:text-text-secondary flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-text-primary truncate">{cat.name}</span>
+                          <span className="text-sm font-medium text-text-primary truncate">{cat.icon || ""} {cat.name}</span>
                           {isMustDo && (
                             <Badge variant="mustdo" className="text-[10px] px-1.5 py-0">
                               <Star className="w-2.5 h-2.5" /> Core
@@ -121,7 +284,7 @@ export default function TracksPage() {
                       </div>
                       <div className="w-20 hidden sm:block">
                         <div className="h-1.5 bg-bg-elevated rounded-full overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${catPct}%`, backgroundColor: meta.color }} />
+                          <div className="h-full rounded-full" style={{ width: `${catPct}%`, backgroundColor: trackColorStyle }} />
                         </div>
                       </div>
                       <span className="text-xs text-text-muted w-10 text-right">{catPct}%</span>

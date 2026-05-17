@@ -35,12 +35,14 @@ async function bootstrap() {
         return;
       }
       const sanitized = origin.replace(/\/$/, '');
-      if (
-        allowedOrigins.includes(sanitized) ||
-        allowedOrigins.some((o) => sanitized.startsWith(o))
-      ) {
+      const isAllowed = allowedOrigins.some((o) => {
+        const sanitizedAllowed = o.replace(/\/$/, '');
+        return sanitized === sanitizedAllowed || sanitized.startsWith(sanitizedAllowed);
+      });
+      if (isAllowed) {
         callback(null, true);
       } else {
+        console.warn(`[CORS Blocked] Request Origin: ${origin}, Allowed Origins: ${allowedOrigins.join(', ')}`);
         callback(new Error(`Origin ${origin} not allowed by CORS`));
       }
     },

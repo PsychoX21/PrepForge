@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/uiStore";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { SearchModal } from "./SearchModal";
 
 interface AppShellProps {
   children: ReactNode;
@@ -33,6 +34,9 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-bg-primary">
+      {/* Global Command K Search Overlay */}
+      <SearchModal />
+
       {/* Sidebar */}
       <Sidebar
         onLogout={onLogout}

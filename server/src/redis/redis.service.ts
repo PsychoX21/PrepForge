@@ -71,13 +71,31 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async invalidateUserPatterns(userId: string): Promise<void> {
-    try {
-      const keys = await this.client.keys(`*user:${userId}*`);
+  async invalidatePattern(pattern: string): Promise<void> {
+    let cursor = '0';
+    let totalInvalidated = 0;
+    do {
+      const [nextCursor, keys] = await this.client.scan(
+        cursor,
+        'MATCH',
+        pattern,
+        'COUNT',
+        100,
+      );
+      cursor = nextCursor;
       if (keys.length > 0) {
         await this.client.del(...keys);
-        this.logger.log(`Invalidated ${keys.length} cache keys for user ${userId}`);
+        totalInvalidated += keys.length;
       }
+    } while (cursor !== '0');
+    if (totalInvalidated > 0) {
+      this.logger.log(`Invalidated ${totalInvalidated} cache keys for pattern: ${pattern}`);
+    }
+  }
+
+  async invalidateUserPatterns(userId: string): Promise<void> {
+    try {
+      await this.invalidatePattern(`*user:${userId}*`);
     } catch (err) {
       this.logger.warn(`Failed to invalidate keys for user ${userId}: ${err.message}`);
     }
@@ -85,11 +103,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   async invalidateTrackPatterns(trackId: string): Promise<void> {
     try {
-      const keys = await this.client.keys(`*track:${trackId}*`);
-      if (keys.length > 0) {
-        await this.client.del(...keys);
-        this.logger.log(`Invalidated ${keys.length} cache keys for track ${trackId}`);
-      }
+      await this.invalidatePattern(`*track:${trackId}*`);
     } catch (err) {
       this.logger.warn(`Failed to invalidate keys for track ${trackId}: ${err.message}`);
     }

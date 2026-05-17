@@ -94,18 +94,6 @@ export class TracksService {
     const cached = await this.redis.get<any>(cacheKey);
     if (cached) return cached;
 
-    const track = await this.prisma.track.findUnique({
-      where: { id: trackId },
-    });
-    if (!track) throw new NotFoundException('Track not found');
-
-    const isMember = await this.prisma.groupMember.findUnique({
-      where: {
-        userId_groupId: { userId, groupId: track.groupId },
-      },
-    });
-    if (!isMember) throw new ForbiddenException('Access denied');
-
     const fullTrack = await this.prisma.track.findUnique({
       where: { id: trackId },
       include: {
@@ -143,6 +131,13 @@ export class TracksService {
 
     if (!fullTrack) throw new NotFoundException('Track not found');
 
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: {
+        userId_groupId: { userId, groupId: fullTrack.groupId },
+      },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
     // Flatten item.progress array to single object
     const mappedCategories = (fullTrack.categories ?? []).map((cat) => ({
       ...cat,
@@ -174,6 +169,19 @@ export class TracksService {
     const cacheKey = `track:${trackId}:user:${userId}:summary`;
     const cached = await this.redis.get<any>(cacheKey);
     if (cached) return cached;
+
+    const trackHeader = await this.prisma.track.findUnique({
+      where: { id: trackId },
+      select: { id: true, groupId: true },
+    });
+    if (!trackHeader) throw new NotFoundException('Track not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: {
+        userId_groupId: { userId, groupId: trackHeader.groupId },
+      },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
 
     const [track, totalItems, doneItems, starredItems] = await this.prisma.$transaction([
       this.prisma.track.findUnique({
@@ -237,13 +245,6 @@ export class TracksService {
 
     if (!track) throw new NotFoundException('Track not found');
 
-    const isMember = await this.prisma.groupMember.findUnique({
-      where: {
-        userId_groupId: { userId, groupId: track.groupId },
-      },
-    });
-    if (!isMember) throw new ForbiddenException('Access denied');
-
     const result = {
       ...track,
       totalItems,
@@ -264,7 +265,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: data.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const track = await this.prisma.track.create({
       data: {
@@ -288,7 +291,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: track.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const updated = await this.prisma.track.update({
       where: { id: trackId },
@@ -306,7 +311,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: track.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const deleted = await this.prisma.track.delete({ where: { id: trackId } });
 
@@ -323,7 +330,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: track.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const cat = await this.prisma.category.create({
       data: {
@@ -349,7 +358,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: cat.track.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const updated = await this.prisma.category.update({
       where: { id: catId },
@@ -370,7 +381,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: cat.track.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const deleted = await this.prisma.category.delete({ where: { id: catId } });
 
@@ -390,7 +403,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: cat.track.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const res = await this.prisma.resource.create({
       data: {
@@ -418,7 +433,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: res.category.track.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const updated = await this.prisma.resource.update({
       where: { id: resId },
@@ -439,7 +456,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: res.category.track.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const deleted = await this.prisma.resource.delete({ where: { id: resId } });
 
@@ -459,7 +478,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: res.category.track.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const unit = await this.prisma.unit.create({
       data: {
@@ -484,7 +505,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: unit.resource.category.track.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const updated = await this.prisma.unit.update({
       where: { id: unitId },
@@ -505,7 +528,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: unit.resource.category.track.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const deleted = await this.prisma.unit.delete({ where: { id: unitId } });
 
@@ -525,7 +550,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: unit.resource.category.track.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const sub = await this.prisma.subUnit.create({
       data: {
@@ -550,7 +577,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: sub.unit.resource.category.track.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const updated = await this.prisma.subUnit.update({
       where: { id: subId },
@@ -571,7 +600,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: sub.unit.resource.category.track.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const deleted = await this.prisma.subUnit.delete({ where: { id: subId } });
 
@@ -591,7 +622,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: sub.unit.resource.category.track.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const item = await this.prisma.item.create({
       data: {
@@ -619,7 +652,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: item.subUnit.unit.resource.category.track.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const updated = await this.prisma.item.update({
       where: { id: itemId },
@@ -640,7 +675,9 @@ export class TracksService {
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: item.subUnit.unit.resource.category.track.groupId } },
     });
-    if (!isMember) throw new ForbiddenException('Access denied');
+    if (!isMember || !['OWNER', 'ADMIN'].includes(isMember.role)) {
+      throw new ForbiddenException('Only admins can modify content');
+    }
 
     const deleted = await this.prisma.item.delete({ where: { id: itemId } });
 

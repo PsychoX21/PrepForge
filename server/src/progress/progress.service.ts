@@ -85,21 +85,12 @@ export class ProgressService {
         }
       : { userId };
 
-    const total = await this.prisma.userItemProgress.count({
-      where: whereClause,
-    });
-
-    const done = await this.prisma.userItemProgress.count({
-      where: { ...whereClause, status: 'DONE' },
-    });
-
-    const inProgress = await this.prisma.userItemProgress.count({
-      where: { ...whereClause, status: 'IN_PROGRESS' },
-    });
-
-    const starred = await this.prisma.userItemProgress.count({
-      where: { ...whereClause, isStarred: true },
-    });
+    const [total, done, inProgress, starred] = await this.prisma.$transaction([
+      this.prisma.userItemProgress.count({ where: whereClause }),
+      this.prisma.userItemProgress.count({ where: { ...whereClause, status: 'DONE' } }),
+      this.prisma.userItemProgress.count({ where: { ...whereClause, status: 'IN_PROGRESS' } }),
+      this.prisma.userItemProgress.count({ where: { ...whereClause, isStarred: true } }),
+    ]);
 
     return { total, done, inProgress, starred };
   }

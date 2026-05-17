@@ -193,15 +193,18 @@ export class GroupsService {
   async updateGroup(groupId: string, userId: string, dto: { name?: string; description?: string }) {
     const group = await this.prisma.group.findUnique({
       where: { id: groupId },
-      select: { createdById: true },
     });
 
     if (!group) {
       throw new NotFoundException('Group not found');
     }
 
-    if (group.createdById !== userId) {
-      throw new ForbiddenException('Only the group owner can modify settings');
+    const member = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId } },
+    });
+
+    if (!member || !['OWNER', 'ADMIN'].includes(member.role)) {
+      throw new ForbiddenException('Only admins or owners can modify settings');
     }
 
     return this.prisma.group.update({
@@ -213,15 +216,18 @@ export class GroupsService {
   async deleteGroup(groupId: string, userId: string) {
     const group = await this.prisma.group.findUnique({
       where: { id: groupId },
-      select: { createdById: true },
     });
 
     if (!group) {
       throw new NotFoundException('Group not found');
     }
 
-    if (group.createdById !== userId) {
-      throw new ForbiddenException('Only the group owner can delete this group');
+    const member = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId } },
+    });
+
+    if (!member || !['OWNER', 'ADMIN'].includes(member.role)) {
+      throw new ForbiddenException('Only admins or owners can delete this group');
     }
 
     // Perform delete. Prisma cascades clean up all memberships, tracks, chat, etc.

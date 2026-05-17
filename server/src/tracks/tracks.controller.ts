@@ -3,6 +3,20 @@ import { TracksService } from './tracks.service';
 import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '@prisma/client';
+import {
+  CreateTrackDto,
+  UpdateTrackDto,
+  CreateCategoryDto,
+  UpdateCategoryDto,
+  CreateResourceDto,
+  UpdateResourceDto,
+  CreateUnitDto,
+  UpdateUnitDto,
+  CreateSubUnitDto,
+  UpdateSubUnitDto,
+  CreateItemDto,
+  UpdateItemDto,
+} from './dto/track-crud.dto';
 
 @Controller('tracks')
 @UseGuards(FirebaseAuthGuard)
@@ -33,12 +47,12 @@ export class TracksController {
   // ─── Custom CRUD Endpoints ────────────────────────────────────────────────
 
   @Post()
-  createTrack(@Body() body: any, @CurrentUser() user: User) {
+  createTrack(@Body() body: CreateTrackDto, @CurrentUser() user: User) {
     return this.tracksService.createTrack(user.id, body);
   }
 
   @Patch(':id')
-  updateTrack(@Param('id') id: string, @Body() body: any, @CurrentUser() user: User) {
+  updateTrack(@Param('id') id: string, @Body() body: UpdateTrackDto, @CurrentUser() user: User) {
     return this.tracksService.updateTrack(user.id, id, body);
   }
 
@@ -48,12 +62,12 @@ export class TracksController {
   }
 
   @Post(':id/categories')
-  createCategory(@Param('id') trackId: string, @Body() body: any, @CurrentUser() user: User) {
+  createCategory(@Param('id') trackId: string, @Body() body: CreateCategoryDto, @CurrentUser() user: User) {
     return this.tracksService.createCategory(user.id, trackId, body);
   }
 
   @Patch('categories/:catId')
-  updateCategory(@Param('catId') catId: string, @Body() body: any, @CurrentUser() user: User) {
+  updateCategory(@Param('catId') catId: string, @Body() body: UpdateCategoryDto, @CurrentUser() user: User) {
     return this.tracksService.updateCategory(user.id, catId, body);
   }
 
@@ -63,12 +77,12 @@ export class TracksController {
   }
 
   @Post('categories/:catId/resources')
-  createResource(@Param('catId') catId: string, @Body() body: any, @CurrentUser() user: User) {
+  createResource(@Param('catId') catId: string, @Body() body: CreateResourceDto, @CurrentUser() user: User) {
     return this.tracksService.createResource(user.id, catId, body);
   }
 
   @Patch('resources/:resId')
-  updateResource(@Param('resId') resId: string, @Body() body: any, @CurrentUser() user: User) {
+  updateResource(@Param('resId') resId: string, @Body() body: UpdateResourceDto, @CurrentUser() user: User) {
     return this.tracksService.updateResource(user.id, resId, body);
   }
 
@@ -78,12 +92,12 @@ export class TracksController {
   }
 
   @Post('resources/:resId/units')
-  createUnit(@Param('resId') resId: string, @Body() body: any, @CurrentUser() user: User) {
+  createUnit(@Param('resId') resId: string, @Body() body: CreateUnitDto, @CurrentUser() user: User) {
     return this.tracksService.createUnit(user.id, resId, body);
   }
 
   @Patch('units/:unitId')
-  updateUnit(@Param('unitId') unitId: string, @Body() body: any, @CurrentUser() user: User) {
+  updateUnit(@Param('unitId') unitId: string, @Body() body: UpdateUnitDto, @CurrentUser() user: User) {
     return this.tracksService.updateUnit(user.id, unitId, body);
   }
 
@@ -93,12 +107,12 @@ export class TracksController {
   }
 
   @Post('units/:unitId/subunits')
-  createSubUnit(@Param('unitId') unitId: string, @Body() body: any, @CurrentUser() user: User) {
+  createSubUnit(@Param('unitId') unitId: string, @Body() body: CreateSubUnitDto, @CurrentUser() user: User) {
     return this.tracksService.createSubUnit(user.id, unitId, body);
   }
 
   @Patch('subunits/:subId')
-  updateSubUnit(@Param('subId') subId: string, @Body() body: any, @CurrentUser() user: User) {
+  updateSubUnit(@Param('subId') subId: string, @Body() body: UpdateSubUnitDto, @CurrentUser() user: User) {
     return this.tracksService.updateSubUnit(user.id, subId, body);
   }
 
@@ -108,12 +122,12 @@ export class TracksController {
   }
 
   @Post('subunits/:subId/items')
-  createItem(@Param('subId') subId: string, @Body() body: any, @CurrentUser() user: User) {
+  createItem(@Param('subId') subId: string, @Body() body: CreateItemDto, @CurrentUser() user: User) {
     return this.tracksService.createItem(user.id, subId, body);
   }
 
   @Patch('items/:itemId')
-  updateItem(@Param('itemId') itemId: string, @Body() body: any, @CurrentUser() user: User) {
+  updateItem(@Param('itemId') itemId: string, @Body() body: UpdateItemDto, @CurrentUser() user: User) {
     return this.tracksService.updateItem(user.id, itemId, body);
   }
 

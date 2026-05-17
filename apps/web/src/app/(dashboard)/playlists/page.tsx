@@ -38,8 +38,7 @@ export default function PlaylistsPage() {
   const [playlistName, setPlaylistName] = useState("");
   const [playlistDesc, setPlaylistDesc] = useState("");
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreate = async () => {
     if (!playlistName.trim()) return;
     const ok = await createPlaylist(playlistName.trim(), playlistDesc.trim() || undefined);
     if (ok) {
@@ -93,7 +92,7 @@ export default function PlaylistsPage() {
 
       {showCreate && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="p-4 bg-bg-elevated border border-border-default/40 rounded-2xl max-w-md">
-          <form onSubmit={handleCreate} className="space-y-4">
+          <div className="space-y-4">
             <div>
               <label className="text-xs text-text-muted font-bold block mb-1">PLAYLIST NAME</label>
               <input
@@ -119,11 +118,11 @@ export default function PlaylistsPage() {
               <Button type="button" variant="secondary" size="sm" onClick={() => setShowCreate(false)}>
                 Cancel
               </Button>
-              <Button type="submit" variant="primary" size="sm" disabled={creating}>
+              <Button type="button" variant="primary" size="sm" disabled={creating} onClick={handleCreate}>
                 Create
               </Button>
             </div>
-          </form>
+          </div>
         </motion.div>
       )}
 

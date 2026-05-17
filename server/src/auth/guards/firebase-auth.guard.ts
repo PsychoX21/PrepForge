@@ -39,6 +39,19 @@ export class FirebaseAuthGuard implements CanActivate {
         where: { firebaseUid: decoded.uid },
       });
 
+      if (!user && decoded.email) {
+        user = await this.prisma.user.findFirst({
+          where: { email: decoded.email },
+        });
+        if (user) {
+          user = await this.prisma.user.update({
+            where: { id: user.id },
+            data: { firebaseUid: decoded.uid },
+          });
+          this.logger.log(`Linked existing user email ${user.email} to Firebase UID ${decoded.uid}`);
+        }
+      }
+
       if (!user) {
         try {
           user = await this.prisma.user.create({

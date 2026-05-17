@@ -20,16 +20,33 @@ export class AuthService {
     try {
       const decoded = await this.firebaseAdmin.verifyToken(idToken);
 
-      let user;
-      try {
-        user = await this.prisma.user.upsert({
-          where: { firebaseUid: decoded.uid },
-          update: {
+      // Look up by firebaseUid first
+      let user = await this.prisma.user.findUnique({
+        where: { firebaseUid: decoded.uid },
+      });
+
+      // If not found by firebaseUid, check by email
+      if (!user && decoded.email) {
+        user = await this.prisma.user.findFirst({
+          where: { email: decoded.email },
+        });
+      }
+
+      if (user) {
+        // Update existing user with latest details and link UID
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            firebaseUid: decoded.uid,
             email: decoded.email || undefined,
             displayName: decoded.name || undefined,
             photoUrl: decoded.picture || undefined,
           },
-          create: {
+        });
+      } else {
+        // Create new user
+        user = await this.prisma.user.create({
+          data: {
             firebaseUid: decoded.uid,
             email: decoded.email || '',
             displayName:
@@ -37,12 +54,6 @@ export class AuthService {
             photoUrl: decoded.picture || null,
           },
         });
-      } catch (upsertError) {
-        this.logger.warn(`Upsert conflict on verifyAndSyncUser: ${(upsertError as Error).message}. Retrying findUnique...`);
-        user = await this.prisma.user.findUnique({
-          where: { firebaseUid: decoded.uid },
-        });
-        if (!user) throw upsertError;
       }
 
       // Update login streak and award daily XP

@@ -99,19 +99,39 @@ export class RealtimeGateway
   // ─── Group Management ─────────────────────────────────────────────────
 
   @SubscribeMessage('join:group')
-  handleJoinGroup(
+  async handleJoinGroup(
     @ConnectedSocket() client: UserSocket,
     @MessageBody() data: { groupId: string },
   ) {
+    if (!client.userId) {
+      client.emit('error', { message: 'Unauthorized connection' });
+      return;
+    }
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: {
+        userId_groupId: {
+          userId: client.userId,
+          groupId: data.groupId,
+        },
+      },
+    });
+
+    if (!isMember) {
+      this.logger.warn(
+        `Unauthorized join attempt: User ${client.userId} tried to join group ${data.groupId}`,
+      );
+      client.emit('error', { message: 'Not a member of this group' });
+      return;
+    }
+
     client.groupId = data.groupId;
     client.join(`group:${data.groupId}`);
 
     // Update online users map
-    if (client.userId) {
-      const userData = this.onlineUsers.get(client.userId);
-      if (userData) {
-        userData.groupId = data.groupId;
-      }
+    const userData = this.onlineUsers.get(client.userId);
+    if (userData) {
+      userData.groupId = data.groupId;
     }
 
     // Broadcast presence

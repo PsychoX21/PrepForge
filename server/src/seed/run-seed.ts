@@ -36,6 +36,14 @@ async function seed() {
   console.log(`📦 Group: ${group.name} (${group.id})\n`);
 
   for (const trackData of DEFAULT_TRACKS) {
+    const existingTrack = await prisma.track.findFirst({
+      where: { groupId: group.id, name: trackData.name, isDefault: true },
+    });
+    if (existingTrack) {
+      console.log(`⏭ Track "${trackData.name}" already seeded, skipping`);
+      continue;
+    }
+
     const track = await prisma.track.create({
       data: {
         name: trackData.name,

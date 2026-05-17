@@ -103,7 +103,7 @@ export default function WarRoomPage() {
         name: entry.user.displayName,
         level: entry.user.level,
         photoUrl: entry.user.photoUrl,
-        lastActive: entry.user.lastActive,
+        lastActiveDate: entry.user.lastActiveDate,
       }));
   }, [onlineUsers, leaderboard]);
 
@@ -244,7 +244,9 @@ export default function WarRoomPage() {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-text-secondary truncate">{member.name}</p>
-                    <p className="text-xs text-text-muted">Lv.{member.level}</p>
+                    <p className="text-[10px] text-text-muted">
+                      Lv.{member.level} {member.lastActiveDate ? `· Active ${member.lastActiveDate}` : ""}
+                    </p>
                   </div>
                 </CardContent>
               </Card>

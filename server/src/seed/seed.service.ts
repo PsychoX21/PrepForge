@@ -76,6 +76,14 @@ export class SeedService {
     const tracks = DEFAULT_TRACKS as SeedTrack[];
 
     for (const trackData of tracks) {
+      const existingTrack = await this.prisma.track.findFirst({
+        where: { groupId, name: trackData.name, isDefault: true },
+      });
+      if (existingTrack) {
+        this.logger.log(`⏭ Track "${trackData.name}" already seeded for group ${groupId}, skipping`);
+        continue;
+      }
+
       const track = await this.prisma.track.create({
         data: {
           name: trackData.name,

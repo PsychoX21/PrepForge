@@ -45,10 +45,21 @@ export class UsersService {
       where: { userId, status: 'DONE' },
     });
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const completedToday = await this.prisma.userItemProgress.count({
+      where: {
+        userId,
+        status: 'DONE',
+        completedAt: { gte: today },
+      },
+    });
+
     return {
       ...user,
       totalItems,
       completedItems,
+      completedToday,
       completionRate: totalItems > 0
         ? Math.round((completedItems / totalItems) * 100)
         : 0,

@@ -8,9 +8,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { nanoid } from 'nanoid';
 
+import { SeedService } from '../seed/seed.service';
+
 @Injectable()
 export class GroupsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly seedService: SeedService,
+  ) {}
 
   async create(userId: string, dto: CreateGroupDto) {
     const inviteCode = nanoid(8);
@@ -32,6 +37,10 @@ export class GroupsService {
         members: { include: { user: { select: { id: true, displayName: true, photoUrl: true } } } },
       },
     });
+
+    if (dto.useDefaultContent) {
+      await this.seedService.seedDefaultContent(group.id);
+    }
 
     return group;
   }
@@ -157,6 +166,7 @@ export class GroupsService {
             xp: true,
             level: true,
             streak: true,
+            lastActiveDate: true,
           },
         },
       },
@@ -168,7 +178,9 @@ export class GroupsService {
       .sort((a, b) => b.xp - a.xp)
       .map((user, index) => ({
         rank: index + 1,
-        ...user,
+        user,
+        xp: user.xp,
+        streak: user.streak,
       }));
 
     return sorted;

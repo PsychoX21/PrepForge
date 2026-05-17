@@ -86,6 +86,43 @@ export function useLeaderboard(groupId: string | null) {
   return { data, isLoading, error };
 }
 
+// ─── useGroupDetails ──────────────────────────────────────────────────────────
+
+/** Fetch details of a single group. */
+export function useGroupDetails(groupId: string | null) {
+  const [data, setData] = useState<Group | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { firebaseUser } = useAuthStore();
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!groupId || !firebaseUser) return;
+    let cancelled = false;
+    setIsLoading(true);
+    setError(null);
+    api
+      .get<ApiResponse<Group>>(`/groups/${groupId}`)
+      .then((res) => {
+        if (!cancelled)
+          setData((res as ApiResponse<Group>).data ?? (res as unknown as Group));
+      })
+      .catch((e: unknown) => {
+        if (!cancelled)
+          setError(e instanceof Error ? e.message : "Failed to load group details");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [groupId, firebaseUser, tick]);
+
+  const refetch = useCallback(() => setTick((t) => t + 1), []);
+  return { data, isLoading, error, refetch };
+}
+
 // ─── useCreateGroup ───────────────────────────────────────────────────────────
 
 /** Mutation: create a new group. */

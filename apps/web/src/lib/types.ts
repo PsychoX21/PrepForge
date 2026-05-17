@@ -65,7 +65,8 @@ export interface User {
   xp: number;
   level: number;
   streak: number;
-  lastActive: string;
+  lastActive?: string;
+  lastActiveDate?: string | null;
   createdAt: string;
   memberships?: GroupMember[];
   progress?: UserItemProgress[];

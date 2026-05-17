@@ -31,6 +31,10 @@ export class FirebaseAdminService implements OnModuleInit {
         });
         this.logger.log('Firebase Admin SDK initialized');
       } else {
+        const nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
+        if (nodeEnv === 'production') {
+          throw new Error('Firebase credentials are required in production environment!');
+        }
         // Initialize without credentials for development
         this.logger.warn(
           'Firebase Admin credentials not found — running in dev bypass mode',

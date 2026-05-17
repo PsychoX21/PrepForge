@@ -1,25 +1,32 @@
 "use client";
 
 /**
- * Starred items page — items the user has starred.
+ * Starred items page — fetches items the user has starred.
  */
 import { motion } from "framer-motion";
-import { Star } from "lucide-react";
+import { Star, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/common";
-
-const MOCK_STARRED = [
-  { id: "1", name: "Monty Hall Problem", resource: "Brainstellar", track: "Quant", difficulty: "EASY" },
-  { id: "2", name: "Dice Combinations", resource: "CSES", track: "SWE", difficulty: "MEDIUM" },
-  { id: "3", name: "Move Semantics", resource: "LearnCpp", track: "SWE", difficulty: null },
-  { id: "4", name: "Problem 24", resource: "Green Book", track: "Quant", difficulty: "HARD" },
-];
+import { useStarredItems } from "@/hooks/useProgress";
 
 const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } };
 const fadeUp = { hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } };
 
+function Skeleton({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse bg-bg-elevated rounded-xl ${className}`} />;
+}
+
+// Derive track name from item's sub-unit path (best-effort until we have enriched API)
+function getDifficultyVariant(difficulty: string | null): "green" | "default" | "destructive" {
+  if (difficulty === "EASY") return "green";
+  if (difficulty === "HARD" || difficulty === "DEADLY") return "destructive";
+  return "default";
+}
+
 export default function StarredPage() {
+  const { data: items, isLoading, error } = useStarredItems();
+
   return (
     <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-6">
       <div className="flex items-center gap-3">
@@ -28,28 +35,42 @@ export default function StarredPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold font-[var(--font-outfit)]">Starred Items</h1>
-          <p className="text-sm text-text-secondary">{MOCK_STARRED.length} items starred</p>
+          <p className="text-sm text-text-secondary">
+            {isLoading ? "Loading..." : `${(items ?? []).length} items starred`}
+          </p>
         </div>
       </div>
 
-      {MOCK_STARRED.length === 0 ? (
-        <EmptyState title="No starred items" description="Star important items to find them quickly" />
-      ) : (
+      {error && (
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
+
+      {isLoading && (
         <div className="space-y-2">
-          {MOCK_STARRED.map((item) => (
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16" />)}
+        </div>
+      )}
+
+      {!isLoading && !error && (items ?? []).length === 0 && (
+        <EmptyState title="No starred items" description="Star important items to find them quickly" />
+      )}
+
+      {!isLoading && !error && (items ?? []).length > 0 && (
+        <div className="space-y-2">
+          {(items ?? []).map((item) => (
             <motion.div key={item.id} variants={fadeUp}>
               <Card variant="interactive" className="py-0">
                 <CardContent className="py-3 flex items-center gap-4">
                   <Star className="w-4 h-4 text-yellow-400 fill-yellow-400 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-text-primary">{item.name}</p>
-                    <p className="text-xs text-text-muted">{item.resource}</p>
+                    <p className="text-xs text-text-muted capitalize">{item.type?.toLowerCase()}</p>
                   </div>
-                  <Badge variant={item.track === "Quant" ? "purple" : "blue"} className="text-[10px]">
-                    {item.track}
-                  </Badge>
                   {item.difficulty && (
-                    <Badge variant={item.difficulty === "EASY" ? "green" : item.difficulty === "MEDIUM" ? "default" : "destructive"} className="text-[10px]">
+                    <Badge variant={getDifficultyVariant(item.difficulty)} className="text-[10px]">
                       {item.difficulty}
                     </Badge>
                   )}

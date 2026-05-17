@@ -67,6 +67,8 @@ export interface User {
   streak: number;
   lastActive: string;
   createdAt: string;
+  memberships?: GroupMember[];
+  progress?: UserItemProgress[];
 }
 
 export interface Group {

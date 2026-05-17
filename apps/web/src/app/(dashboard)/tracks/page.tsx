@@ -1,67 +1,35 @@
 "use client";
 
 /**
- * Tracks listing page — shows all tracks with their categories.
+ * Tracks listing page — fetches all tracks for the user's active group.
  */
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ChevronRight, Star, FolderTree } from "lucide-react";
+import { ChevronRight, Star, FolderTree, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useTracks } from "@/hooks/useTracks";
+import { useAuthStore } from "@/stores/authStore";
 
-// Mock data — replaced by API in production
-const TRACKS = [
-  {
-    id: "quant",
-    name: "Quantitative Trader/Researcher",
-    icon: "📊",
-    color: "#a78bfa",
-    description: "Probability, puzzles, AI/ML, finance fundamentals, and speed math.",
-    completed: 45,
-    total: 180,
-    categories: [
-      { name: "Probability Theory & Statistics", resources: 3, completed: 8, total: 15 },
-      { name: "Puzzle Solving & Practice", resources: 10, completed: 22, total: 80, mustDo: true },
-      { name: "AI, ML & Deep Learning", resources: 4, completed: 10, total: 30 },
-      { name: "Finance & Trading Basics", resources: 3, completed: 5, total: 8 },
-      { name: "Speed & Mental Math", resources: 1, completed: 0, total: 100 },
-    ],
-  },
-  {
-    id: "swe",
-    name: "Software Engineer",
-    icon: "💻",
-    color: "#58a6ff",
-    description: "Competitive programming, systems knowledge, C++ mastery, and DSA.",
-    completed: 78,
-    total: 250,
-    categories: [
-      { name: "Competitive Programming", resources: 9, completed: 45, total: 180, mustDo: true },
-      { name: "Systems Courses", resources: 13, completed: 20, total: 45 },
-      { name: "C++ Mastery (HFTs)", resources: 6, completed: 10, total: 30, mustDo: true },
-      { name: "Interview Systems Knowledge", resources: 2, completed: 3, total: 10 },
-    ],
-  },
-  {
-    id: "resume",
-    name: "Resume & General Prep",
-    icon: "📝",
-    color: "#34d399",
-    description: "Resume building, communication skills, mock interviews, and networking.",
-    completed: 19,
-    total: 70,
-    categories: [
-      { name: "Resume Building", resources: 4, completed: 10, total: 20 },
-      { name: "Communication & Soft Skills", resources: 3, completed: 5, total: 15 },
-      { name: "Mock Interviews & Company Prep", resources: 3, completed: 4, total: 10 },
-    ],
-  },
-];
+
+const TRACK_META: Record<string, { icon: string; color: string; description: string }> = {
+  "Quantitative Trader/Researcher": { icon: "📊", color: "#a78bfa", description: "Probability, puzzles, AI/ML, finance fundamentals, and speed math." },
+  "Software Engineer": { icon: "💻", color: "#58a6ff", description: "Competitive programming, systems knowledge, C++ mastery, and DSA." },
+  "Resume & General Prep": { icon: "📝", color: "#34d399", description: "Resume building, communication skills, mock interviews, and networking." },
+};
 
 const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
 const fadeUp = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
 
+function Skeleton({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse bg-bg-elevated rounded-xl ${className}`} />;
+}
+
 export default function TracksPage() {
+  const { user } = useAuthStore();
+  const groupId = user?.memberships?.[0]?.groupId ?? null;
+  const { data: tracks, isLoading, error } = useTracks(groupId);
+
   return (
     <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-8">
       <div>
@@ -71,78 +39,89 @@ export default function TracksPage() {
         </p>
       </div>
 
-      {TRACKS.map((track) => {
-        const pct = Math.round((track.completed / track.total) * 100);
+      {isLoading && (
+        <div className="space-y-6">
+          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-[200px]" />)}
+        </div>
+      )}
+
+      {error && !isLoading && (
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium">Failed to load tracks</p>
+            <p className="text-xs text-red-400/70 mt-0.5">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {!isLoading && !error && !groupId && (
+        <div className="text-center py-16 text-text-muted">
+          <FolderTree className="w-10 h-10 mx-auto mb-4 opacity-40" />
+          <p className="text-sm">You are not in any group yet.</p>
+        </div>
+      )}
+
+      {!isLoading && !error && (tracks ?? []).map((track) => {
+        const meta = TRACK_META[track.name] ?? { icon: "📚", color: "#58a6ff", description: "" };
+        const total = track.totalItems ?? 0;
+        const done = track.completedItems ?? 0;
+        const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
         return (
           <motion.div key={track.id} variants={fadeUp}>
             <Card variant="default" className="overflow-hidden">
               {/* Track header */}
               <div
                 className="px-6 py-4 border-b border-border-default/50"
-                style={{ borderLeftWidth: 4, borderLeftColor: track.color }}
+                style={{ borderLeftWidth: 4, borderLeftColor: meta.color }}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{track.icon}</span>
+                    <span className="text-2xl">{meta.icon}</span>
                     <div>
-                      <h2 className="text-lg font-semibold text-text-primary font-[var(--font-outfit)]">
-                        {track.name}
-                      </h2>
-                      <p className="text-xs text-text-muted">{track.description}</p>
+                      <h2 className="text-lg font-semibold text-text-primary font-[var(--font-outfit)]">{track.name}</h2>
+                      <p className="text-xs text-text-muted">{meta.description || track.description}</p>
                     </div>
                   </div>
                   <div className="text-right hidden sm:block">
-                    <p className="text-xl font-bold" style={{ color: track.color }}>
-                      {pct}%
-                    </p>
-                    <p className="text-xs text-text-muted">
-                      {track.completed}/{track.total} items
-                    </p>
+                    <p className="text-xl font-bold" style={{ color: meta.color }}>{pct}%</p>
+                    <p className="text-xs text-text-muted">{done}/{total} items</p>
                   </div>
                 </div>
                 <div className="mt-3 h-2 bg-bg-elevated rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${pct}%` }}
-                    transition={{ duration: 1, delay: 0.3 }}
-                    className="h-full rounded-full"
-                    style={{ backgroundColor: track.color }}
-                  />
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 1, delay: 0.3 }}
+                    className="h-full rounded-full" style={{ backgroundColor: meta.color }} />
                 </div>
               </div>
 
               {/* Categories */}
               <CardContent className="py-2">
-                {track.categories.map((cat) => {
-                  const catPct = cat.total > 0 ? Math.round((cat.completed / cat.total) * 100) : 0;
+                {(track.categories ?? []).map((cat) => {
+                  const catTotal = cat.totalItems ?? 0;
+                  const catDone = cat.completedItems ?? 0;
+                  const catPct = catTotal > 0 ? Math.round((catDone / catTotal) * 100) : 0;
+                  const isMustDo = (cat.resources ?? []).some((r) => r.isMustDo);
                   return (
-                    <Link
-                      key={cat.name}
-                      href={`/tracks/${track.id}/${encodeURIComponent(cat.name)}`}
-                      className="flex items-center gap-4 px-2 py-3 rounded-xl hover:bg-bg-elevated transition-colors group"
-                    >
+                    <Link key={cat.id} href={`/tracks/${track.id}/${cat.id}`}
+                      className="flex items-center gap-4 px-2 py-3 rounded-xl hover:bg-bg-elevated transition-colors group">
                       <FolderTree className="w-4 h-4 text-text-muted group-hover:text-text-secondary flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-text-primary truncate">
-                            {cat.name}
-                          </span>
-                          {cat.mustDo && (
+                          <span className="text-sm font-medium text-text-primary truncate">{cat.name}</span>
+                          {isMustDo && (
                             <Badge variant="mustdo" className="text-[10px] px-1.5 py-0">
                               <Star className="w-2.5 h-2.5" /> Core
                             </Badge>
                           )}
                         </div>
                         <span className="text-xs text-text-muted">
-                          {cat.resources} resources · {cat.completed}/{cat.total} items
+                          {(cat.resources ?? []).length} resources · {catDone}/{catTotal} items
                         </span>
                       </div>
                       <div className="w-20 hidden sm:block">
                         <div className="h-1.5 bg-bg-elevated rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${catPct}%`, backgroundColor: track.color }}
-                          />
+                          <div className="h-full rounded-full" style={{ width: `${catPct}%`, backgroundColor: meta.color }} />
                         </div>
                       </div>
                       <span className="text-xs text-text-muted w-10 text-right">{catPct}%</span>

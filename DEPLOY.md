@@ -15,98 +15,161 @@ This guide outlines the steps to deploy the PrepForge monorepo to production. Th
 ## 1. Firebase Setup (Authentication)
 
 1. Go to the [Firebase Console](https://console.firebase.google.com/).
-2. Create a new project named "PrepForge".
-3. Enable **Google Analytics** (optional).
-4. Go to **Build > Authentication** and enable **Google** as a sign-in provider.
-5. **Get Client Credentials (Frontend):**
-   - Go to Project Settings > General > Your Apps.
-   - Add a new Web app.
-   - Copy the Firebase configuration object.
-6. **Get Admin Credentials (Backend):**
-   - Go to Project Settings > Service Accounts.
-   - Click **Generate new private key** and download the JSON file. You will need these for the backend environment variables.
+2. Create a new project named **"PrepForge"**.
+3. Go to **Build > Authentication** and enable **Google** as a sign-in provider.
+4. **Get Client Credentials (Frontend):**
+   - Go to **Project Settings > General > Your Apps**.
+   - Add a new **Web app**.
+   - Copy the full `firebaseConfig` object — you need all fields below.
+5. **Get Admin Credentials (Backend):**
+   - Go to **Project Settings > Service Accounts**.
+   - Click **Generate new private key** and download the JSON file.
+   - You need: `project_id`, `client_email`, and `private_key` from that JSON.
+6. Add your Vercel domain to Firebase **Authorized Domains**:
+   - **Authentication > Settings > Authorized domains > Add domain**
 
 ---
 
 ## 2. Backend Deployment (Railway)
 
 1. Log into [Railway](https://railway.app/).
-2. Click **New Project** -> **Deploy from GitHub repo** and select your PrepForge repository.
-3. Once the repository is added, Railway will detect the monorepo structure. You may need to configure the root directory to `server/` or use a custom start command if Railway tries to deploy the entire workspace.
-   - **Root Directory:** `/server`
+2. Click **New Project → Deploy from GitHub repo** and select your PrepForge repository.
+3. Configure the service:
+   - **Root Directory:** `server/`
    - **Build Command:** `npm run build`
    - **Start Command:** `npm run start:prod`
 4. Add **PostgreSQL** and **Redis** plugins to your Railway project.
-5. In the backend service settings, add the following Environment Variables:
+5. Add the following **Environment Variables** to the backend service:
 
 ```env
-# Database
+# ── Database (auto-filled by Railway PostgreSQL plugin) ──────────────────────
 DATABASE_URL=<Provided by Railway PostgreSQL plugin>
 
-# Redis
+# ── Redis (auto-filled by Railway Redis plugin) ───────────────────────────────
 REDIS_URL=<Provided by Railway Redis plugin>
 
-# Firebase Admin SDK (From downloaded JSON)
+# ── Firebase Admin SDK (from downloaded service-account JSON) ─────────────────
 FIREBASE_PROJECT_ID=<your-project-id>
-FIREBASE_CLIENT_EMAIL=<your-client-email>
-FIREBASE_PRIVATE_KEY="<your-private-key-with-\n-newlines>"
+FIREBASE_CLIENT_EMAIL=<service-account-client-email>
+FIREBASE_PRIVATE_KEY="<private-key-with-literal-\n-newlines>"
 
-# Security & CORS
-JWT_SECRET=<generate-a-strong-secret-key>
-CORS_ORIGIN=https://prepforge.vercel.app  # URL of your Vercel frontend
+# ── Security & CORS ───────────────────────────────────────────────────────────
+JWT_SECRET=<generate-a-strong-random-secret>
+CORS_ORIGIN=https://your-app.vercel.app   # ← update after Vercel deploy
 PORT=4001
 ```
 
 6. **Database Migration & Seeding:**
-   - Go to your backend service in Railway, open the **Variables** tab, ensure `DATABASE_URL` is available.
-   - To deploy the schema, run the migrations on the Railway instance or add a pre-start script to your `server/package.json`:
-     `"prestart:prod": "npx prisma migrate deploy && npm run db:seed"`
-   - Railway will automatically run the migrations and seed the database with the default tracks and resources on the next deployment.
+   Add a `prestart:prod` script in `server/package.json` to auto-migrate on every deploy:
+   ```json
+   "prestart:prod": "npx prisma migrate deploy && npm run db:seed"
+   ```
+   Railway will run migrations and seed the default tracks automatically.
 
 ---
 
 ## 3. Frontend Deployment (Vercel)
 
 1. Log into [Vercel](https://vercel.com/).
-2. Click **Add New...** -> **Project**.
-3. Import your PrepForge repository.
-4. Vercel should automatically detect that it's a **Next.js** project in a monorepo.
-   - **Root Directory:** `apps/web`
-5. Configure the following Environment Variables before deploying:
+2. Click **Add New → Project** and import your PrepForge repository.
+3. Set the **Root Directory** to `apps/web`.
+4. Add the following **Environment Variables** before clicking Deploy:
 
 ```env
-# Firebase Client SDK
+# ── Firebase Client SDK ───────────────────────────────────────────────────────
 NEXT_PUBLIC_FIREBASE_API_KEY=<your-api-key>
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=<your-project>.firebaseapp.com
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=<your-project-id>
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=<your-project>.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=<your-messaging-sender-id>
+NEXT_PUBLIC_FIREBASE_APP_ID=<your-app-id>
 
-# Backend URL
-NEXT_PUBLIC_API_URL=https://<your-railway-backend-url>.up.railway.app/api
-NEXT_PUBLIC_WS_URL=https://<your-railway-backend-url>.up.railway.app
+# ── Backend URLs (use your Railway service URL) ───────────────────────────────
+NEXT_PUBLIC_API_URL=https://<your-railway-service>.up.railway.app/api
+NEXT_PUBLIC_WS_URL=https://<your-railway-service>.up.railway.app
 ```
 
-6. Click **Deploy**. Vercel will build the frontend application and provide you with a production URL.
-7. Important: Update the `CORS_ORIGIN` variable in your backend (Railway) to match this new Vercel URL, and add the Vercel domain to your Firebase Authorized Domains (Authentication > Settings > Authorized domains).
+5. Click **Deploy**. Vercel builds the Next.js app and gives you a production URL.
+6. **Important:** After deploy, update `CORS_ORIGIN` in Railway to match your Vercel URL.
 
 ---
 
-## 4. Verification
+## 4. Local Development
 
-After both services are deployed:
-1. Open the Vercel frontend URL.
-2. Attempt to Sign in with Google.
-3. If successful, your frontend is communicating correctly with Firebase.
-4. Open the Dashboard or Tracks page to ensure data (seeded tracks/items) is being fetched successfully from the Railway backend.
+### Create `server/.env`
 
-## Local Development Requirements
+```env
+DATABASE_URL=postgresql://prepforge:password@localhost:5432/prepforge_dev
+REDIS_URL=redis://localhost:6379
 
-To run this stack locally, ensure you have a `.env` file at the root or within both `apps/web` and `server/` with your local connection strings.
-- **Backend:** PostgreSQL must be running locally or via Docker.
-- **Frontend:** Make sure `NEXT_PUBLIC_API_URL` points to `http://localhost:4001/api`.
+FIREBASE_PROJECT_ID=<your-project-id>
+FIREBASE_CLIENT_EMAIL=<service-account-client-email>
+FIREBASE_PRIVATE_KEY="<private-key>"
 
-Run the development servers:
+JWT_SECRET=local-dev-secret-change-in-prod
+CORS_ORIGIN=http://localhost:4000
+PORT=4001
+```
+
+### Create `apps/web/.env.local`
+
+```env
+NEXT_PUBLIC_FIREBASE_API_KEY=<your-api-key>
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=<your-project>.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=<your-project-id>
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=<your-project>.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=<your-messaging-sender-id>
+NEXT_PUBLIC_FIREBASE_APP_ID=<your-app-id>
+
+NEXT_PUBLIC_API_URL=http://localhost:4001/api
+NEXT_PUBLIC_WS_URL=http://localhost:4001
+```
+
+### Start the stack
+
 ```bash
-# In the root directory:
-npm install
+# 1. Start DB + Redis
+docker-compose up -d
+
+# 2. Run migrations + seed (first time only)
+npm run db:migrate
+npm run db:seed
+
+# 3. Start everything
 npm run dev
 ```
+
+> Frontend: http://localhost:4000  
+> Backend API: http://localhost:4001/api
+
+---
+
+## 5. Post-Deploy Verification
+
+1. Open the Vercel frontend URL.
+2. Click **Sign in with Google** — Firebase auth should redirect and return you to the dashboard.
+3. Open the **Tracks** page — data should load from your Railway backend (seeded tracks will appear).
+4. Check the **Leaderboard** — your user should appear after completing any item.
+
+---
+
+## Environment Variable Checklist
+
+| Variable | Where | Required |
+|---|---|---|
+| `DATABASE_URL` | Railway (Backend) | ✅ |
+| `REDIS_URL` | Railway (Backend) | ✅ |
+| `FIREBASE_PROJECT_ID` | Railway (Backend) | ✅ |
+| `FIREBASE_CLIENT_EMAIL` | Railway (Backend) | ✅ |
+| `FIREBASE_PRIVATE_KEY` | Railway (Backend) | ✅ |
+| `JWT_SECRET` | Railway (Backend) | ✅ |
+| `CORS_ORIGIN` | Railway (Backend) | ✅ |
+| `PORT` | Railway (Backend) | ✅ |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Vercel (Frontend) | ✅ |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Vercel (Frontend) | ✅ |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Vercel (Frontend) | ✅ |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Vercel (Frontend) | ✅ |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Vercel (Frontend) | ✅ |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | Vercel (Frontend) | ✅ |
+| `NEXT_PUBLIC_API_URL` | Vercel (Frontend) | ✅ |
+| `NEXT_PUBLIC_WS_URL` | Vercel (Frontend) | ✅ |

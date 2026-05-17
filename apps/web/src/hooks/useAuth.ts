@@ -152,6 +152,34 @@ export function useAuth() {
     }
   };
 
+  const deleteUserAccount = async () => {
+    setLoading(true);
+    try {
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("prepforge_demo_mode");
+      }
+      
+      // Delete database record
+      await api.delete("/users/me");
+      
+      // Try to delete Firebase Auth user client-side (requires recent auth)
+      try {
+        const { deleteCurrentUser } = await import("@/lib/firebase");
+        await deleteCurrentUser();
+      } catch (fbErr) {
+        console.warn("Could not delete Firebase Auth user client-side:", fbErr);
+      }
+      
+      await signOut();
+      reset();
+    } catch (err) {
+      console.error("Delete account failed:", err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     firebaseUser,
     user,
@@ -161,6 +189,7 @@ export function useAuth() {
     login,
     loginDemo,
     logout,
+    deleteUserAccount,
     getIdToken,
   };
 }

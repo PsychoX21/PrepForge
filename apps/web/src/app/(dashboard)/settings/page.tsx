@@ -17,7 +17,7 @@ const fadeUp = { hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0 } };
 const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08 } } };
 
 export default function SettingsPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, deleteUserAccount } = useAuth();
   const { setUser } = useAuthStore();
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
@@ -44,8 +44,7 @@ export default function SettingsPage() {
 
     setIsDeleting(true);
     try {
-      await api.delete("/users/me");
-      await logout();
+      await deleteUserAccount();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to delete account");
     } finally {

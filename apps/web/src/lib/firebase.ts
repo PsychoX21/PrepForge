@@ -9,6 +9,7 @@ import {
   signInWithPopup,
   signOut as firebaseSignOut,
   onAuthStateChanged,
+  deleteUser,
   type Auth,
   type User as FirebaseUser,
 } from "firebase/auth";
@@ -66,6 +67,17 @@ export async function signInWithGoogle(): Promise<FirebaseUser> {
 export async function signOut(): Promise<void> {
   const auth = getFirebaseAuth();
   await firebaseSignOut(auth);
+}
+
+/**
+ * Delete the currently authenticated Firebase user completely.
+ */
+export async function deleteCurrentUser(): Promise<void> {
+  const auth = getFirebaseAuth();
+  const user = auth.currentUser;
+  if (user) {
+    await deleteUser(user);
+  }
 }
 
 /**

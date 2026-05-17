@@ -166,7 +166,7 @@ export function CompletionRing({
   percentage,
   size = 48,
   strokeWidth = 4,
-  color = "var(--accent-blue)",
+  color = "var(--color-accent-blue)",
   className,
   children,
 }: CompletionRingProps) {
@@ -182,7 +182,7 @@ export function CompletionRing({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="var(--bg-elevated)"
+          stroke="var(--color-bg-elevated)"
           strokeWidth={strokeWidth}
         />
         <motion.circle

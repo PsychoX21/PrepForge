@@ -6,7 +6,7 @@
  */
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Flame, Menu, X } from "lucide-react";
 import { GithubIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
@@ -101,32 +101,34 @@ export function Navbar() {
         </div>
 
         {/* Mobile Menu */}
-        {isMobileOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden py-4 border-t border-border-default"
-          >
-            <div className="flex flex-col gap-2">
-              {NAV_LINKS.map((link) => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  className="px-4 py-3 text-text-secondary hover:text-text-primary hover:bg-white/[0.04] rounded-lg transition-colors"
-                  onClick={() => setIsMobileOpen(false)}
-                >
-                  {link.label}
-                </a>
-              ))}
-              <div className="pt-2 px-4">
-                <Button variant="primary" size="md" className="w-full" asChild>
-                  <Link href="/login">Get Started</Link>
-                </Button>
+        <AnimatePresence>
+          {isMobileOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden py-4 border-t border-border-default overflow-hidden"
+            >
+              <div className="flex flex-col gap-2">
+                {NAV_LINKS.map((link) => (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    className="px-4 py-3 text-text-secondary hover:text-text-primary hover:bg-white/[0.04] rounded-lg transition-colors"
+                    onClick={() => setIsMobileOpen(false)}
+                  >
+                    {link.label}
+                  </a>
+                ))}
+                <div className="pt-2 px-4">
+                  <Button variant="primary" size="md" className="w-full" asChild>
+                    <Link href="/login">Get Started</Link>
+                  </Button>
+                </div>
               </div>
-            </div>
-          </motion.div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
     </motion.header>
   );

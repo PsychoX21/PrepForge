@@ -21,9 +21,12 @@ interface UserSocket extends Socket {
   groupId?: string;
 }
 
+const corsOriginEnv = process.env.CORS_ORIGIN || 'http://localhost:4000';
+const corsOrigins = corsOriginEnv.split(',').map((o) => o.trim().replace(/\/$/, ''));
+
 @WebSocketGateway({
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:4000',
+    origin: corsOrigins,
     credentials: true,
   },
   namespace: '/',

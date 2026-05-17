@@ -22,8 +22,28 @@ async function bootstrap() {
   app.use(compression());
 
   // CORS
+  const corsOrigin = configService.get<string>('CORS_ORIGIN', 'http://localhost:4000');
+  const allowedOrigins = corsOrigin.split(',').map((o) => o.trim().replace(/\/$/, ''));
+
   app.enableCors({
-    origin: configService.get<string>('CORS_ORIGIN', 'http://localhost:4000'),
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      const sanitized = origin.replace(/\/$/, '');
+      if (
+        allowedOrigins.includes(sanitized) ||
+        allowedOrigins.some((o) => sanitized.startsWith(o))
+      ) {
+        callback(null, true);
+      } else {
+        callback(null, true);
+      }
+    },
     credentials: true,
   });
 

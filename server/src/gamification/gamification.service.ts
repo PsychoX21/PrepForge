@@ -4,7 +4,7 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { XP_ACTIONS, LEVEL_THRESHOLDS } from '@prepforge/shared';
+import { XP_ACTIONS, LEVEL_THRESHOLDS } from '../shared/xp';
 
 // ─── XP Configuration ───────────────────────────────────────────────────────
 

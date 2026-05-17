@@ -36,7 +36,7 @@ function Skeleton({ className = "" }: { className?: string }) {
 }
  
 import { useTrackTree } from "@/hooks/useTracks";
-import { useUpdateProgress } from "@/hooks/useProgress";
+import { useUpdateProgress, usePlaylists, useCreatePlaylist, useAddToPlaylist, useRemoveFromPlaylist } from "@/hooks/useProgress";
 import {
   useCreateCategory,
   useUpdateCategory,
@@ -66,6 +66,14 @@ export default function CategoryDetailPage({ params }: PageProps) {
   const { trackId, catId } = use(params);
   const { data: track, isLoading, error, refetch } = useTrackTree(trackId);
   const { update } = useUpdateProgress();
+
+  const { data: playlists, refetch: refetchPlaylists } = usePlaylists();
+  const { create: createPlaylist } = useCreatePlaylist();
+  const { add: addToPlaylist } = useAddToPlaylist();
+  const { remove: removeFromPlaylist } = useRemoveFromPlaylist();
+
+  const [activePlaylistItemId, setActivePlaylistItemId] = useState<string | null>(null);
+  const [newPlaylistName, setNewPlaylistName] = useState("");
 
   // Custom CRUD mutations
   const { create: createCategory } = useCreateCategory();
@@ -118,7 +126,7 @@ export default function CategoryDetailPage({ params }: PageProps) {
       setFormName(config.initialData.name || "");
       setFormDesc(config.initialData.description || "");
       setFormIcon(config.initialData.icon || "📚");
-      setFormType(config.initialData.type || "ARTICLE");
+      setFormType(config.initialData.type || "BOOK");
       setFormUrl(config.initialData.url || "");
       setFormIsMustDo(config.initialData.isMustDo ?? false);
       setFormDifficulty(config.initialData.difficulty || "EASY");
@@ -126,7 +134,7 @@ export default function CategoryDetailPage({ params }: PageProps) {
       setFormName("");
       setFormDesc("");
       setFormIcon("📚");
-      setFormType(config.type === "item" ? "QUESTION" : "ARTICLE");
+      setFormType(config.type === "item" ? "QUESTION" : "BOOK");
       setFormUrl("");
       setFormIsMustDo(false);
       setFormDifficulty("EASY");
@@ -415,18 +423,28 @@ export default function CategoryDetailPage({ params }: PageProps) {
                     >
                       {modalConfig.type === "resource" ? (
                         <>
-                          <option value="ARTICLE">ARTICLE</option>
-                          <option value="VIDEO">VIDEO</option>
-                          <option value="INTERACTIVE">INTERACTIVE</option>
-                          <option value="STUDY_SET">STUDY SET</option>
+                          <option value="BOOK">BOOK</option>
+                          <option value="COURSE">COURSE</option>
+                          <option value="WEBSITE">WEBSITE</option>
+                          <option value="PROBLEM_SET">PROBLEM SET</option>
+                          <option value="VIDEO_SERIES">VIDEO SERIES</option>
+                          <option value="SLIDES">SLIDES</option>
+                          <option value="NOTES">NOTES</option>
+                          <option value="DOC">DOCUMENT</option>
+                          <option value="TEMPLATE">TEMPLATE</option>
+                          <option value="GUIDE">GUIDE</option>
+                          <option value="COLLECTION">COLLECTION</option>
+                          <option value="PRACTICE">PRACTICE RUN</option>
                         </>
                       ) : (
                         <>
                           <option value="CONCEPT">CONCEPT MASTER</option>
                           <option value="VIDEO">VIDEO UNIT</option>
-                          <option value="PRACTICE">PRACTICE RUN</option>
+                          <option value="EXERCISE">PRACTICE EXERCISE</option>
                           <option value="QUESTION">EXAM QUESTION</option>
                           <option value="PROBLEM">CODING PROBLEM</option>
+                          <option value="READING">READING TASK</option>
+                          <option value="PUZZLE">BRAIN TEASER</option>
                         </>
                       )}
                     </select>
@@ -720,6 +738,16 @@ export default function CategoryDetailPage({ params }: PageProps) {
                                     <Clock className="w-3.5 h-3.5" />
                                   </button>
 
+                                  {/* Add to playlist button */}
+                                  <button
+                                    className="p-1.5 rounded-lg border bg-transparent border-border-default/20 text-text-muted hover:text-text-secondary transition-colors"
+                                    onClick={() => setActivePlaylistItemId(item.id)}
+                                    aria-label="Add to custom list"
+                                    title="Add to Playlist"
+                                  >
+                                    <ListPlus className="w-3.5 h-3.5" />
+                                  </button>
+
                                   {/* Mark done button */}
                                   {status === "DONE" ? (
                                     <Button
@@ -768,6 +796,94 @@ export default function CategoryDetailPage({ params }: PageProps) {
           </div>
         )}
       </div>
+
+      {/* Save to Playlist Modal */}
+      {activePlaylistItemId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-sm bg-bg-primary border border-border-default/80 rounded-2xl p-5 shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-border-default/20 pb-2.5">
+              <h4 className="text-sm font-bold font-[var(--font-outfit)] text-text-primary">Save to...</h4>
+              <button
+                onClick={() => setActivePlaylistItemId(null)}
+                className="text-text-muted hover:text-text-primary text-xs font-semibold"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* List of custom checklists/playlists */}
+            <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1 no-scrollbar">
+              {(playlists ?? []).length > 0 ? (
+                (playlists ?? []).map((playlist) => {
+                  const isChecked = playlist.items?.some((pi) => pi.itemId === activePlaylistItemId) ?? false;
+                  return (
+                    <label
+                      key={playlist.id}
+                      className="flex items-center gap-3 p-2 hover:bg-bg-elevated/40 rounded-xl cursor-pointer transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={async (e) => {
+                          if (e.target.checked) {
+                            await addToPlaylist(playlist.id, activePlaylistItemId);
+                          } else {
+                            await removeFromPlaylist(playlist.id, activePlaylistItemId);
+                          }
+                          refetchPlaylists();
+                        }}
+                        className="w-4 h-4 rounded border-border-default bg-bg-elevated text-accent-blue focus:ring-accent-blue"
+                      />
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-semibold text-text-primary">{playlist.name}</p>
+                        {playlist.description && (
+                          <p className="text-[10px] text-text-muted line-clamp-1">{playlist.description}</p>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })
+              ) : (
+                <p className="text-xs text-text-muted text-center py-4">No custom playlists created yet.</p>
+              )}
+            </div>
+
+            {/* Create new playlist inline */}
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!newPlaylistName.trim()) return;
+                const created = await createPlaylist(newPlaylistName.trim());
+                if (created) {
+                  setNewPlaylistName("");
+                  await addToPlaylist(created.id, activePlaylistItemId);
+                  refetchPlaylists();
+                }
+              }}
+              className="pt-3 border-t border-border-default/20 space-y-2"
+            >
+              <p className="text-[10px] text-text-muted uppercase font-bold tracking-wider">Create New Playlist</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Playlist name..."
+                  className="flex-1 px-2.5 py-1.5 text-xs bg-bg-elevated border border-border-default rounded-lg text-text-primary focus:outline-none focus:border-accent-blue"
+                  value={newPlaylistName}
+                  onChange={(e) => setNewPlaylistName(e.target.value)}
+                  required
+                />
+                <Button type="submit" size="sm" variant="primary" className="py-1 px-3 text-xs">
+                  Create
+                </Button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }

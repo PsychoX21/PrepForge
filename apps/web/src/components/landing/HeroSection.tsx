@@ -15,6 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { GoogleIcon } from "@/components/ui/icons";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 
 // ─── Stats Bar ──────────────────────────────────────────────────────────────
 
@@ -47,6 +49,14 @@ const itemVariants = {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export function HeroSection() {
+  const { loginDemo } = useAuth();
+  const router = useRouter();
+
+  const handleDemo = async () => {
+    await loginDemo();
+    router.push("/dashboard");
+  };
+
   return (
     <section
       className="relative min-h-screen flex items-center justify-center pt-16"
@@ -105,11 +115,15 @@ export function HeroSection() {
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </Button>
-          <Button variant="secondary" size="xl" className="w-full sm:w-auto" id="hero-cta-demo" asChild>
-            <Link href="/dashboard">
-              <BookOpen className="w-5 h-5" />
-              Explore Demo
-            </Link>
+          <Button
+            variant="secondary"
+            size="xl"
+            className="w-full sm:w-auto"
+            id="hero-cta-demo"
+            onClick={handleDemo}
+          >
+            <BookOpen className="w-5 h-5" />
+            Explore Demo
           </Button>
         </motion.div>
 

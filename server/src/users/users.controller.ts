@@ -41,4 +41,10 @@ export class UsersController {
   getHeatmap(@CurrentUser() user: User) {
     return this.usersService.getHeatmap(user.id);
   }
+
+  /** GET /api/users/me/activities — Get activities and period totals */
+  @Get('me/activities')
+  getActivities(@CurrentUser() user: User) {
+    return this.usersService.getActivities(user.id);
+  }
 }

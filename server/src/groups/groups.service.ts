@@ -190,6 +190,26 @@ export class GroupsService {
     return sorted;
   }
 
+  async updateGroup(groupId: string, userId: string, dto: { name?: string; description?: string }) {
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+      select: { createdById: true },
+    });
+
+    if (!group) {
+      throw new NotFoundException('Group not found');
+    }
+
+    if (group.createdById !== userId) {
+      throw new ForbiddenException('Only the group owner can modify settings');
+    }
+
+    return this.prisma.group.update({
+      where: { id: groupId },
+      data: dto,
+    });
+  }
+
   async deleteGroup(groupId: string, userId: string) {
     const group = await this.prisma.group.findUnique({
       where: { id: groupId },

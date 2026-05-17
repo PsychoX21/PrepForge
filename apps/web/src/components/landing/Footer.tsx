@@ -4,7 +4,7 @@
  * Footer section with links and branding.
  */
 import { Flame, Heart } from "lucide-react";
-import { GithubIcon, TwitterIcon } from "@/components/ui/icons";
+import { GithubIcon } from "@/components/ui/icons";
 
 export function Footer() {
   return (
@@ -50,7 +50,7 @@ export function Footer() {
           {/* Social */}
           <div className="flex items-center gap-3">
             <a
-              href="https://github.com"
+              href="https://github.com/PsychoX21/PrepForge"
               target="_blank"
               rel="noopener noreferrer"
               className="w-8 h-8 rounded-lg bg-bg-elevated border border-border-default flex items-center justify-center text-text-muted hover:text-text-primary hover:border-border-hover transition-all"
@@ -58,16 +58,6 @@ export function Footer() {
               id="footer-github-link"
             >
               <GithubIcon className="w-4 h-4" />
-            </a>
-            <a
-              href="https://twitter.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-8 h-8 rounded-lg bg-bg-elevated border border-border-default flex items-center justify-center text-text-muted hover:text-text-primary hover:border-border-hover transition-all"
-              aria-label="Twitter"
-              id="footer-twitter-link"
-            >
-              <TwitterIcon className="w-4 h-4" />
             </a>
           </div>
         </div>

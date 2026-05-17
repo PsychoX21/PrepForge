@@ -82,6 +82,7 @@ export interface Group {
   memberCount?: number;
   tracks?: Track[];
   members?: GroupMember[];
+  _count?: { tracks?: number; members?: number };
   createdAt: string;
 }
 
@@ -92,6 +93,7 @@ export interface GroupMember {
   role: MemberRole;
   joinedAt: string;
   user?: User;
+  group?: Group;
 }
 
 // ─── Resource Hierarchy ─────────────────────────────────────────────────────

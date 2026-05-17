@@ -229,3 +229,27 @@ export function useDeleteGroup() {
 
   return { remove, isLoading, error };
 }
+
+// ─── useUpdateGroup ───────────────────────────────────────────────────────────
+
+/** Mutation: update group name/description. */
+export function useUpdateGroup() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const update = useCallback(async (groupId: string, data: { name?: string; description?: string }): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await api.patch(`/groups/${groupId}`, data);
+      return true;
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to update group settings");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return { update, isLoading, error };
+}

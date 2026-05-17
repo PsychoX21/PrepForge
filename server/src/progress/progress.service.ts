@@ -105,7 +105,7 @@ export class ProgressService {
   }
 
   async getStarred(userId: string) {
-    return this.prisma.userItemProgress.findMany({
+    const progressList = await this.prisma.userItemProgress.findMany({
       where: { userId, isStarred: true },
       include: {
         item: {
@@ -130,10 +130,16 @@ export class ProgressService {
       },
       orderBy: { updatedAt: 'desc' },
     });
+    return progressList.map((p) => ({
+      ...p.item,
+      isStarred: p.isStarred,
+      isWatchLater: p.isWatchLater,
+      status: p.status,
+    }));
   }
 
   async getWatchLater(userId: string) {
-    return this.prisma.userItemProgress.findMany({
+    const progressList = await this.prisma.userItemProgress.findMany({
       where: { userId, isWatchLater: true },
       include: {
         item: {
@@ -151,6 +157,96 @@ export class ProgressService {
         },
       },
       orderBy: { updatedAt: 'desc' },
+    });
+    return progressList.map((p) => ({
+      ...p.item,
+      isStarred: p.isStarred,
+      isWatchLater: p.isWatchLater,
+      status: p.status,
+    }));
+  }
+
+  async getPlaylists(userId: string) {
+    return this.prisma.playlist.findMany({
+      where: { userId },
+      include: {
+        items: {
+          include: {
+            item: {
+              include: {
+                subUnit: {
+                  include: {
+                    unit: {
+                      include: {
+                        resource: {
+                          include: {
+                            category: {
+                              include: { track: { select: { name: true, color: true } } },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async createPlaylist(userId: string, name: string, description?: string) {
+    return this.prisma.playlist.create({
+      data: {
+        userId,
+        name,
+        description,
+      },
+    });
+  }
+
+  async deletePlaylist(userId: string, playlistId: string) {
+    const playlist = await this.prisma.playlist.findFirst({
+      where: { id: playlistId, userId },
+    });
+    if (!playlist) throw new Error("Playlist not found or access denied");
+
+    return this.prisma.playlist.delete({
+      where: { id: playlistId },
+    });
+  }
+
+  async addToPlaylist(userId: string, playlistId: string, itemId: string) {
+    const playlist = await this.prisma.playlist.findFirst({
+      where: { id: playlistId, userId },
+    });
+    if (!playlist) throw new Error("Playlist not found or access denied");
+
+    return this.prisma.playlistItem.upsert({
+      where: {
+        playlistId_itemId: { playlistId, itemId },
+      },
+      update: {},
+      create: {
+        playlistId,
+        itemId,
+      },
+    });
+  }
+
+  async removeFromPlaylist(userId: string, playlistId: string, itemId: string) {
+    const playlist = await this.prisma.playlist.findFirst({
+      where: { id: playlistId, userId },
+    });
+    if (!playlist) throw new Error("Playlist not found or access denied");
+
+    return this.prisma.playlistItem.delete({
+      where: {
+        playlistId_itemId: { playlistId, itemId },
+      },
     });
   }
 }

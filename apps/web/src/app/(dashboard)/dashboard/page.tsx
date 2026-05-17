@@ -4,7 +4,7 @@
  * Dashboard page — main overview showing tracks, stats, and activity.
  * All data fetched from backend via domain hooks.
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Flame,
@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/card";
 
 import { Button } from "@/components/ui/button";
-import { useUserStats, useHeatmap, useProgressSummary } from "@/hooks/useProgress";
+import { useUserStats, useHeatmap, useProgressSummary, useUserActivities } from "@/hooks/useProgress";
 import { useTracks } from "@/hooks/useTracks";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -67,6 +67,8 @@ export default function DashboardPage() {
   const { data: heatmapData, isLoading: heatmapLoading } = useHeatmap();
   const { data: summary, isLoading: summaryLoading } = useProgressSummary();
   const { data: tracks, isLoading: tracksLoading } = useTracks(defaultGroupId);
+  const { data: activityData } = useUserActivities();
+  const [activeCell, setActiveCell] = useState<{ date: string; count: number } | null>(null);
 
   const completionPct = useMemo(() => {
     if (!summary || summary.total === 0) return 0;
@@ -89,12 +91,16 @@ export default function DashboardPage() {
       );
     }
     // Deterministic placeholder (no Math.random → no hydration mismatch)
+    const today = new Date();
     return Array.from({ length: 52 }, (_, week) =>
       Array.from({ length: 7 }, (_, day) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() - ((51 - week) * 7 + (6 - day)));
+        const key = d.toISOString().split("T")[0];
         const intensity = Math.abs(Math.sin(week * 13 + day * 7)) * 0.9 + 0.1;
         const level: 0 | 1 | 2 | 3 | 4 =
           intensity > 0.8 ? 4 : intensity > 0.5 ? 3 : intensity > 0.3 ? 2 : intensity > 0.1 ? 1 : 0;
-        return { date: "", count: Math.floor(intensity * 15), level };
+        return { date: key, count: Math.floor(intensity * 15), level };
       })
     );
   }, [heatmapData]);
@@ -323,13 +329,28 @@ export default function DashboardPage() {
       </div>
 
       {/* ─── Heatmap ──────────────────────────────────────────────── */}
-      <motion.div variants={fadeUp}>
+      <motion.div variants={fadeUp} className="space-y-6">
         <Card variant="default">
           <CardHeader>
-            <CardTitle>Activity Heatmap</CardTitle>
-            <CardDescription>
-              Your contribution history over the past year
-            </CardDescription>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <CardTitle>Activity Heatmap</CardTitle>
+                <CardDescription>
+                  Your contribution history over the past year
+                </CardDescription>
+              </div>
+              {/* Dynamic Interactive Cell Display */}
+              <div className="text-xs font-medium text-text-muted bg-bg-elevated px-3 py-1.5 rounded-xl border border-border-default/40">
+                {activeCell ? (
+                  <span>
+                    📅 <span className="text-text-primary font-semibold">{activeCell.date}</span> —{" "}
+                    <span className="text-accent-blue font-bold">{activeCell.count} activities</span> completed
+                  </span>
+                ) : (
+                  <span>Hover or click a square to inspect details</span>
+                )}
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {heatmapLoading ? (
@@ -345,8 +366,10 @@ export default function DashboardPage() {
                       {week.map((cell, dayIdx) => (
                         <div
                           key={dayIdx}
-                          className={`w-[14px] h-[14px] rounded-[3px] ${heatmapColors[cell.level]} transition-colors hover:ring-1 hover:ring-white/30`}
-                          title={cell.date ? `${cell.date}: ${cell.count} activities` : `${cell.count} activities`}
+                          onMouseEnter={() => setActiveCell(cell)}
+                          onClick={() => setActiveCell(cell)}
+                          className={`w-[14px] h-[14px] rounded-[3px] ${heatmapColors[cell.level]} transition-colors hover:ring-1 hover:ring-white/30 cursor-pointer`}
+                          title={`${cell.date}: ${cell.count} activities`}
                         />
                       ))}
                     </div>
@@ -363,6 +386,84 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* ─── XP Breakdown & Activity Log ────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* XP Breakdown by Period */}
+          <Card variant="glass" className="lg:col-span-1">
+            <CardHeader>
+              <CardTitle className="text-base font-bold font-[var(--font-outfit)]">XP Breakdown</CardTitle>
+              <CardDescription>Aggregate preparation XP by period</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {[
+                { label: "Today", value: activityData?.totals?.day ?? 0, color: "text-accent-blue" },
+                { label: "This Week", value: activityData?.totals?.week ?? 0, color: "text-accent-purple" },
+                { label: "This Month", value: activityData?.totals?.month ?? 0, color: "text-accent-green" },
+                { label: "This Year", value: activityData?.totals?.year ?? 0, color: "text-yellow-400" },
+              ].map((period, i) => (
+                <div key={i} className="flex items-center justify-between p-3 bg-bg-elevated/40 border border-border-default/20 rounded-xl">
+                  <span className="text-xs text-text-secondary font-medium">{period.label}</span>
+                  <span className={`text-sm font-bold ${period.color}`}>+{period.value} XP</span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Activity Log Feed */}
+          <Card variant="glass" className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-base font-bold font-[var(--font-outfit)]">Latest Activities</CardTitle>
+              <CardDescription>Recent actions that awarded XP</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {activityData?.logs && activityData.logs.length > 0 ? (
+                <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1 no-scrollbar">
+                  {activityData.logs.map((log) => {
+                    const label =
+                      {
+                        MARK_ITEM_DONE: "Completed a Study Item",
+                        MARK_SUBUNIT_DONE: "Finished a Topic Subunit",
+                        MARK_UNIT_DONE: "Mastered a Chapter Unit",
+                        MARK_RESOURCE_DONE: "Completed a Whole Resource",
+                        ADD_COMMENT: "Contributed to Discussion",
+                        ADD_NOTE: "Saved a Personal Study Note",
+                        SHARE_PUBLIC_NOTE: "Shared a Resource Note",
+                        DAILY_LOGIN: "Daily Check-in Streak Active",
+                        STREAK_BONUS_7: "7-Day Consistent Prep Bonus",
+                        STREAK_BONUS_30: "30-Day Hardcore Prep Bonus",
+                        STREAK_BONUS_100: "100-Day Centurion Prep Bonus",
+                      }[log.action] || "Activity Completed";
+
+                    return (
+                      <div key={log.id} className="flex items-center justify-between p-2.5 bg-bg-elevated/20 hover:bg-bg-elevated/40 border border-border-default/10 rounded-xl transition-all">
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-semibold text-text-primary">{label}</p>
+                          <p className="text-[10px] text-text-muted">
+                            {new Date(log.createdAt).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                        <span className="text-xs font-bold text-accent-blue bg-accent-blue/10 px-2 py-0.5 rounded-lg">
+                          +{log.xpAwarded} XP
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-10 text-text-muted text-xs text-center space-y-2">
+                  <span>No recent activity found.</span>
+                  <span className="text-[10px]">Complete study items or check in daily to start earning XP!</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </motion.div>
     </motion.div>
   );

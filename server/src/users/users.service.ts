@@ -88,4 +88,52 @@ export class UsersService {
       };
     });
   }
+
+  async getActivities(userId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const threeSixtyFiveDaysAgo = new Date();
+    threeSixtyFiveDaysAgo.setDate(threeSixtyFiveDaysAgo.getDate() - 365);
+
+    const [logs, todayXp, weekXp, monthXp, yearXp] = await this.prisma.$transaction([
+      this.prisma.activityLog.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+      this.prisma.activityLog.aggregate({
+        where: { userId, createdAt: { gte: today } },
+        _sum: { xpAwarded: true },
+      }),
+      this.prisma.activityLog.aggregate({
+        where: { userId, createdAt: { gte: sevenDaysAgo } },
+        _sum: { xpAwarded: true },
+      }),
+      this.prisma.activityLog.aggregate({
+        where: { userId, createdAt: { gte: thirtyDaysAgo } },
+        _sum: { xpAwarded: true },
+      }),
+      this.prisma.activityLog.aggregate({
+        where: { userId, createdAt: { gte: threeSixtyFiveDaysAgo } },
+        _sum: { xpAwarded: true },
+      }),
+    ]);
+
+    return {
+      logs,
+      totals: {
+        day: todayXp._sum.xpAwarded ?? 0,
+        week: weekXp._sum.xpAwarded ?? 0,
+        month: monthXp._sum.xpAwarded ?? 0,
+        year: yearXp._sum.xpAwarded ?? 0,
+      },
+    };
+  }
 }

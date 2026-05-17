@@ -20,6 +20,7 @@ import {
   LogOut,
   Star,
   Clock,
+  ListVideo,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/uiStore";
@@ -38,6 +39,7 @@ const NAV_ITEMS = [
 const BOTTOM_ITEMS = [
   { label: "Starred", href: "/starred", icon: Star },
   { label: "Watch Later", href: "/watch-later", icon: Clock },
+  { label: "Playlists", href: "/playlists", icon: ListVideo },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 

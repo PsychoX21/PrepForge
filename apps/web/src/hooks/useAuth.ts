@@ -29,6 +29,35 @@ export function useAuth() {
 
   // Listen to Firebase auth state changes
   useEffect(() => {
+    const isDemo = typeof window !== "undefined" && localStorage.getItem("prepforge_demo_mode") === "true";
+    if (isDemo) {
+      const demoUser: User = {
+        id: "demo-user-id",
+        firebaseUid: "demo-uid",
+        email: "demo@prepforge.com",
+        displayName: "Demo Candidate",
+        photoUrl: null,
+        xp: 140,
+        level: 3,
+        streak: 5,
+        lastActiveDate: new Date().toISOString().split("T")[0],
+        createdAt: new Date().toISOString(),
+      };
+      
+      const mockFbUser = {
+        uid: "demo-uid",
+        email: "demo@prepforge.com",
+        displayName: "Demo Candidate",
+        getIdToken: async () => "demo-token",
+      } as any;
+
+      setFirebaseUser(mockFbUser);
+      setUser(demoUser);
+      setInitialized(true);
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthChange(async (fbUser) => {
       setFirebaseUser(fbUser);
 
@@ -63,9 +92,49 @@ export function useAuth() {
     }
   };
 
+  const loginDemo = async () => {
+    setLoading(true);
+    try {
+      const demoUser: User = {
+        id: "demo-user-id",
+        firebaseUid: "demo-uid",
+        email: "demo@prepforge.com",
+        displayName: "Demo Candidate",
+        photoUrl: null,
+        xp: 140,
+        level: 3,
+        streak: 5,
+        lastActiveDate: new Date().toISOString().split("T")[0],
+        createdAt: new Date().toISOString(),
+      };
+      
+      if (typeof window !== "undefined") {
+        localStorage.setItem("prepforge_demo_mode", "true");
+      }
+
+      const mockFbUser = {
+        uid: "demo-uid",
+        email: "demo@prepforge.com",
+        displayName: "Demo Candidate",
+        getIdToken: async () => "demo-token",
+      } as any;
+
+      setFirebaseUser(mockFbUser);
+      setUser(demoUser);
+      setInitialized(true);
+    } catch (err) {
+      console.error("Demo login failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = async () => {
     setLoading(true);
     try {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("prepforge_demo_mode");
+      }
       await signOut();
       reset();
     } catch (err) {
@@ -82,6 +151,7 @@ export function useAuth() {
     isInitialized,
     isLoading,
     login,
+    loginDemo,
     logout,
     getIdToken,
   };

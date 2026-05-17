@@ -9,7 +9,7 @@ import { Users, Plus, Copy, UserPlus, Settings, ExternalLink, AlertCircle, Check
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useGroups, useCreateGroup, useJoinGroup, useDeleteGroup } from "@/hooks/useGroups";
+import { useGroups, useCreateGroup, useJoinGroup, useDeleteGroup, useUpdateGroup } from "@/hooks/useGroups";
 import Link from "next/link";
 
 const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
@@ -24,6 +24,7 @@ export default function GroupsPage() {
   const { create, isLoading: creating } = useCreateGroup();
   const { join, isLoading: joining } = useJoinGroup();
   const { remove: deleteGroup, isLoading: deleting } = useDeleteGroup();
+  const { update: updateGroup, isLoading: updating } = useUpdateGroup();
 
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
@@ -32,6 +33,33 @@ export default function GroupsPage() {
   const [useDefault, setUseDefault] = useState(true);
   const [inviteCode, setInviteCode] = useState("");
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  // Settings Modal State
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsGroup, setSettingsGroup] = useState<any>(null);
+  const [settingsName, setSettingsName] = useState("");
+  const [settingsDesc, setSettingsDesc] = useState("");
+
+  const openSettings = (group: any) => {
+    setSettingsGroup(group);
+    setSettingsName(group.name);
+    setSettingsDesc(group.description || "");
+    setShowSettings(true);
+  };
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!settingsGroup || !settingsName.trim()) return;
+    const ok = await updateGroup(settingsGroup.id, {
+      name: settingsName.trim(),
+      description: settingsDesc.trim() || undefined,
+    });
+    if (ok) {
+      refetch();
+      setShowSettings(false);
+      setSettingsGroup(null);
+    }
+  };
 
   const handleDeleteGroup = async (groupId: string, groupName: string) => {
     if (!confirm(`WARNING: Are you sure you want to permanently delete the group "${groupName}"?\n\nThis will instantly delete all custom tracks, categories, items, and study progress logs for all members of this group! This action is absolute and CANNOT be undone.`)) {
@@ -173,7 +201,7 @@ export default function GroupsPage() {
                           <Users className="w-3.5 h-3.5" /> {group.memberCount ?? (group.members ?? []).length} members
                         </span>
                         <span>·</span>
-                        <span>{(group.tracks ?? []).length} tracks</span>
+                        <span>{group._count?.tracks ?? 0} tracks</span>
                       </div>
 
                 {/* Invite code */}
@@ -201,12 +229,11 @@ export default function GroupsPage() {
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            onClick={() => handleDeleteGroup(group.id, group.name)}
-                            disabled={deleting}
-                            className="hover:text-red-400 text-text-muted transition-colors"
-                            title="Delete Group"
+                            onClick={() => openSettings(group)}
+                            className="hover:text-accent-blue text-text-muted transition-colors"
+                            title="Group Settings"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Settings className="w-4 h-4" />
                           </Button>
                         )}
                       </div>
@@ -223,6 +250,81 @@ export default function GroupsPage() {
           </div>
         )}
       </div>
+
+      {/* Group Settings Modal */}
+      {showSettings && settingsGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-md bg-bg-primary border border-border-default/80 rounded-2xl p-6 shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-border-default/20 pb-3">
+              <h3 className="text-lg font-bold font-[var(--font-outfit)]">Group Settings</h3>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="text-text-muted hover:text-text-primary text-sm font-semibold"
+              >
+                Close
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSettings} className="space-y-4">
+              <div>
+                <label className="text-xs text-text-muted font-bold block mb-1">GROUP NAME</label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 text-sm bg-bg-elevated border border-border-default rounded-lg text-text-primary focus:outline-none focus:border-accent-blue"
+                  value={settingsName}
+                  onChange={(e) => setSettingsName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-text-muted font-bold block mb-1">DESCRIPTION</label>
+                <textarea
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm bg-bg-elevated border border-border-default rounded-lg text-text-primary focus:outline-none focus:border-accent-blue resize-none"
+                  value={settingsDesc}
+                  onChange={(e) => setSettingsDesc(e.target.value)}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-border-default/20">
+                <Button variant="secondary" size="sm" type="button" onClick={() => setShowSettings(false)}>
+                  Cancel
+                </Button>
+                <Button variant="primary" size="sm" type="submit" disabled={updating}>
+                  Save Changes
+                </Button>
+              </div>
+            </form>
+
+            {/* Danger Zone */}
+            <div className="pt-4 border-t border-red-500/20 space-y-2">
+              <p className="text-xs text-red-400 font-bold uppercase tracking-wider">Danger Zone</p>
+              <div className="p-3 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-text-primary">Delete this group</p>
+                  <p className="text-[10px] text-text-muted">Permanently erase this group, custom tracks, and progress.</p>
+                </div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    setShowSettings(false);
+                    handleDeleteGroup(settingsGroup.id, settingsGroup.name);
+                  }}
+                  className="bg-red-500 hover:bg-red-600 text-white border-none py-1.5 px-3 text-xs"
+                >
+                  Delete Group
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }

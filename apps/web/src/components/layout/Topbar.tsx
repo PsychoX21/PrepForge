@@ -1,9 +1,6 @@
 "use client";
 
-/**
- * Top navigation bar for authenticated pages.
- * Shows search, notifications, and user actions.
- */
+import { useState } from "react";
 import { Search, Bell, Menu, Command } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
 import { Button } from "@/components/ui/button";
@@ -15,6 +12,7 @@ interface TopbarProps {
 
 export function Topbar({ title, subtitle }: TopbarProps) {
   const { setMobileMenuOpen, setSearchOpen } = useUIStore();
+  const [showNotifications, setShowNotifications] = useState(false);
 
   return (
     <header className="sticky top-0 z-30 h-16 bg-bg-primary/80 backdrop-blur-xl border-b border-border-default/50">
@@ -67,23 +65,54 @@ export function Topbar({ title, subtitle }: TopbarProps) {
           </Button>
 
           {/* Notifications */}
-          <Button 
-            variant="ghost" 
-            size="icon-sm" 
-            aria-label="Notifications"
-            onClick={() => {
-              useUIStore.getState().addToast({
-                title: "You're all caught up!",
-                message: "No new notifications right now.",
-                type: "info"
-              });
-            }}
-          >
-            <div className="relative">
-              <Bell className="w-4 h-4" />
-              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-accent-blue rounded-full" />
-            </div>
-          </Button>
+          <div className="relative flex items-center">
+            <Button 
+              variant="ghost" 
+              size="icon-sm" 
+              aria-label="Notifications"
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
+              <div className="relative">
+                <Bell className="w-4 h-4" />
+                <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-accent-blue rounded-full" />
+              </div>
+            </Button>
+
+            {showNotifications && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
+                <div className="absolute right-0 top-10 w-80 bg-bg-primary border border-border-default/80 rounded-2xl p-4 shadow-2xl space-y-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="flex items-center justify-between border-b border-border-default/20 pb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-text-primary">Notifications</span>
+                    <button onClick={() => setShowNotifications(false)} className="text-[10px] text-text-muted hover:text-text-primary">Dismiss all</button>
+                  </div>
+                  <div className="space-y-2.5 max-h-[250px] overflow-y-auto no-scrollbar">
+                    <div className="flex gap-2.5 items-start p-2 hover:bg-bg-elevated/40 rounded-xl transition-colors">
+                      <div className="w-6 h-6 rounded-lg bg-accent-blue/10 flex items-center justify-center text-xs flex-shrink-0 text-accent-blue">📚</div>
+                      <div className="space-y-0.5 min-w-0">
+                        <p className="text-[11px] font-semibold text-text-primary">New SWE Resources</p>
+                        <p className="text-[10px] text-text-muted">A mentor added "Optimal DSA Guide" to your track.</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2.5 items-start p-2 hover:bg-bg-elevated/40 rounded-xl transition-colors">
+                      <div className="w-6 h-6 rounded-lg bg-yellow-400/10 flex items-center justify-center text-xs flex-shrink-0 text-yellow-400">🔥</div>
+                      <div className="space-y-0.5 min-w-0">
+                        <p className="text-[11px] font-semibold text-text-primary">Keep It Going!</p>
+                        <p className="text-[10px] text-text-muted">Your study streak is active at 5 days. Keep crushing it!</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2.5 items-start p-2 hover:bg-bg-elevated/40 rounded-xl transition-colors">
+                      <div className="w-6 h-6 rounded-lg bg-accent-green/10 flex items-center justify-center text-xs flex-shrink-0 text-accent-green">💬</div>
+                      <div className="space-y-0.5 min-w-0">
+                        <p className="text-[11px] font-semibold text-text-primary">Discussion Active</p>
+                        <p className="text-[10px] text-text-muted">Someone responded to your comment on "Probability."</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </header>

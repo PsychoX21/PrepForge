@@ -4,7 +4,7 @@
  * Tracks listing page — fetches all tracks for the user's active group.
  * Allows members to create, edit, or delete custom tracks.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ChevronRight, Star, FolderTree, AlertCircle, Plus, Edit2, Trash2 } from "lucide-react";
@@ -23,8 +23,18 @@ function Skeleton({ className = "" }: { className?: string }) {
 
 export default function TracksPage() {
   const { user } = useAuthStore();
-  const groupId = user?.memberships?.[0]?.groupId ?? null;
-  const { data: tracks, isLoading, error, refetch } = useTracks(groupId);
+  const memberships = user?.memberships ?? [];
+  const defaultGroupId = memberships[0]?.groupId ?? null;
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (defaultGroupId && !selectedGroupId) {
+      setSelectedGroupId(defaultGroupId);
+    }
+  }, [defaultGroupId, selectedGroupId]);
+
+  const { data: tracks, isLoading, error, refetch } = useTracks(selectedGroupId);
+  const groupId = selectedGroupId;
 
   const { create, isLoading: isCreating } = useCreateTrack();
   const { update, isLoading: isUpdating } = useUpdateTrack();
@@ -109,18 +119,41 @@ export default function TracksPage() {
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-bg-elevated/20 p-4 rounded-2xl border border-border-default/30">
         <div>
-          <h1 className="text-2xl font-bold font-[var(--font-outfit)]">Your Tracks</h1>
+          <h1 className="text-2xl font-bold font-[var(--font-outfit)] bg-gradient-to-r from-accent-blue to-accent-purple bg-clip-text text-transparent">
+            Study Tracks
+          </h1>
           <p className="text-sm text-text-secondary mt-1">
             Explore the complete resource hierarchy. Click any category to drill down or customize.
           </p>
         </div>
-        {groupId && (
-          <Button variant="primary" size="sm" onClick={openCreateForm} className="w-fit">
-            <Plus className="w-4 h-4 mr-1.5" /> Add Custom Track
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Active Group Dropdown */}
+          {memberships.length > 0 && (
+            <div className="flex items-center gap-2 bg-bg-primary px-3 py-1.5 rounded-xl border border-border-default">
+              <span className="text-xs text-text-muted font-semibold">GROUP:</span>
+              <select
+                className="bg-transparent text-xs text-text-primary focus:outline-none cursor-pointer font-semibold"
+                value={selectedGroupId || ""}
+                onChange={(e) => {
+                  setSelectedGroupId(e.target.value || null);
+                }}
+              >
+                {memberships.map((m) => (
+                  <option key={m.groupId} value={m.groupId} className="bg-bg-primary text-text-primary text-xs">
+                    {m.group?.name || "Unnamed Group"}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {groupId && (
+            <Button variant="primary" size="sm" onClick={openCreateForm} className="w-fit shadow-lg shadow-accent-blue/10">
+              <Plus className="w-4 h-4 mr-1.5" /> Add Custom Track
+            </Button>
+          )}
+        </div>
       </div>
 
       {showForm && (

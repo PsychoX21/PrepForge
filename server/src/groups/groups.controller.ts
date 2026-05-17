@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Param,
   Body,
   UseGuards,
@@ -64,6 +65,16 @@ export class GroupsController {
   @Get(':id/leaderboard')
   getLeaderboard(@Param('id') id: string, @CurrentUser() user: User) {
     return this.groupsService.getLeaderboard(id, user.id);
+  }
+
+  /** PATCH /api/groups/:id — Update group settings */
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @CurrentUser() user: User,
+    @Body() dto: { name?: string; description?: string },
+  ) {
+    return this.groupsService.updateGroup(id, user.id, dto);
   }
 
   /** DELETE /api/groups/:id — Delete a group (owner only) */

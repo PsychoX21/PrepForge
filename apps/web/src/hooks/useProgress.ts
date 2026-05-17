@@ -150,3 +150,144 @@ export function useUpdateProgress() {
 
   return { update, isLoading, error };
 }
+
+// ─── useUserActivities ──────────────────────────────────────────────────────────
+
+export interface UserActivityLog {
+  id: string;
+  action: string;
+  xpAwarded: number;
+  createdAt: string;
+}
+
+export interface UserActivitiesData {
+  logs: UserActivityLog[];
+  totals: {
+    day: number;
+    week: number;
+    month: number;
+    year: number;
+  };
+}
+
+/** Fetch the user's detailed activity logs and period XP sum totals. */
+export function useUserActivities() {
+  return useFetch<UserActivitiesData>("/users/me/activities");
+}
+
+// ─── Playlists custom list types ───────────────────────────────────────────
+
+export interface PlaylistItemData {
+  id: string;
+  playlistId: string;
+  itemId: string;
+  item: Item;
+  createdAt: string;
+}
+
+export interface PlaylistData {
+  id: string;
+  name: string;
+  description?: string;
+  items: PlaylistItemData[];
+  createdAt: string;
+}
+
+// ─── usePlaylists ──────────────────────────────────────────────────────────
+
+/** Fetch all the user's custom playlists. */
+export function usePlaylists() {
+  return useFetch<PlaylistData[]>("/progress/playlists");
+}
+
+// ─── useCreatePlaylist ──────────────────────────────────────────────────────
+
+export function useCreatePlaylist() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const create = useCallback(async (name: string, description?: string): Promise<PlaylistData | null> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await api.post<ApiResponse<PlaylistData>>("/progress/playlists", { name, description });
+      return res.data ?? (res as unknown as PlaylistData);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to create playlist");
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return { create, isLoading, error };
+}
+
+// ─── useDeletePlaylist ──────────────────────────────────────────────────────
+
+export function useDeletePlaylist() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const remove = useCallback(async (playlistId: string): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await api.delete(`/progress/playlists/${playlistId}`);
+      return true;
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to delete playlist");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return { remove, isLoading, error };
+}
+
+// ─── useAddToPlaylist ────────────────────────────────────────────────────────
+
+export function useAddToPlaylist() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const add = useCallback(async (playlistId: string, itemId: string): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await api.post(`/progress/playlists/${playlistId}/items`, { itemId });
+      return true;
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to add item to playlist");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return { add, isLoading, error };
+}
+
+// ─── useRemoveFromPlaylist ───────────────────────────────────────────────────
+
+export function useRemoveFromPlaylist() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const remove = useCallback(async (playlistId: string, itemId: string): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await api.delete(`/progress/playlists/${playlistId}/items/${itemId}`);
+      return true;
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to remove item from playlist");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return { remove, isLoading, error };
+}

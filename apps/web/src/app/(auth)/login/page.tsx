@@ -6,12 +6,13 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Flame } from "lucide-react";
+import { Flame, BookOpen } from "lucide-react";
 import { LoginButton } from "@/components/auth";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function LoginPage() {
-  const { isAuthenticated, isInitialized } = useAuth();
+  const { isAuthenticated, isInitialized, loginDemo } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -59,6 +60,22 @@ export default function LoginPage() {
               peers.
             </p>
             <LoginButton className="w-full" />
+            <div className="flex items-center justify-center gap-2 text-xs text-text-muted my-2">
+              <span className="w-8 h-px bg-border-default/30" />
+              <span>or</span>
+              <span className="w-8 h-px bg-border-default/30" />
+            </div>
+            <Button
+              variant="secondary"
+              className="w-full flex items-center justify-center gap-2"
+              onClick={async () => {
+                await loginDemo();
+                router.push("/dashboard");
+              }}
+            >
+              <BookOpen className="w-4 h-4" />
+              Explore Demo Mode
+            </Button>
           </div>
 
           <p className="text-[11px] text-text-muted">

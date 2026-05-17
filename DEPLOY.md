@@ -1,12 +1,14 @@
 # PrepForge Deployment Guide
 
-This guide outlines the steps to deploy the PrepForge monorepo to production. The architecture consists of a Next.js frontend deployed to Vercel and a NestJS backend (along with PostgreSQL and Redis) deployed to Railway.
+This guide outlines the steps to deploy the PrepForge monorepo to production. The architecture consists of a Next.js frontend deployed to Vercel and a NestJS backend (along with PostgreSQL and Redis) deployed to Render.
 
 ## Prerequisites
 
 - **Node.js** v18+
 - **Vercel** account (for frontend)
-- **Railway** account (for backend, DB, and Redis)
+- **Render** account (for backend Node service)
+- **Neon** or **Supabase** account (for permanently free PostgreSQL)
+- **Upstash** account (for permanently free Redis)
 - **Firebase** project (for Authentication)
 - GitHub repository with the code
 
@@ -30,28 +32,40 @@ This guide outlines the steps to deploy the PrepForge monorepo to production. Th
 
 ---
 
-## 2. Backend Deployment (Railway)
+## 2. Database & Redis (100% Free Alternatives)
 
-1. Log into [Railway](https://railway.app/).
-2. Click **New Project → Deploy from GitHub repo** and select your PrepForge repository.
-3. Configure the service:
-   - **Root Directory:** `server/`
+Render's free databases expire after 30 days. To keep your app running free forever, use these external services:
+
+1. **PostgreSQL via Neon (neon.tech) or Supabase (supabase.com)**
+   - Create a free account and start a new Postgres project.
+   - Copy the **Connection String** (it will look like `postgresql://user:password@...`).
+   
+2. **Redis via Upstash (upstash.com)**
+   - Create a free account and create a new Redis database.
+   - Scroll down to the **Connect** section, select "Redis-CLI", and copy the URL (it will look like `redis://default:password@...`).
+
+## 3. Backend Deployment (Render)
+
+1. Log into [Render](https://render.com/).
+2. Click **New → Web Service** and connect your PrepForge GitHub repository.
+3. Configure the Web Service:
+   - **Name:** prepforge-backend
+   - **Root Directory:** `server`
+   - **Environment:** `Node`
    - **Build Command:** `npm run build`
    - **Start Command:** `npm run start:prod`
-4. Add **PostgreSQL** and **Redis** plugins to your Railway project.
-5. Add the following **Environment Variables** to the backend service:
+   - **Instance Type:** Free ($0/month)
+4. Click **Advanced** and add the following **Environment Variables**:
 
 ```env
-# ── Database (auto-filled by Railway PostgreSQL plugin) ──────────────────────
-DATABASE_URL=<Provided by Railway PostgreSQL plugin>
-
-# ── Redis (auto-filled by Railway Redis plugin) ───────────────────────────────
-REDIS_URL=<Provided by Railway Redis plugin>
+# ── Databases (Paste the URLs from Neon and Upstash) ──────────────────────────
+DATABASE_URL=postgresql://<from-neon>
+REDIS_URL=redis://<from-upstash>
 
 # ── Firebase Admin SDK (from downloaded service-account JSON) ─────────────────
 FIREBASE_PROJECT_ID=<your-project-id>
-FIREBASE_CLIENT_EMAIL=<service-account-client-email>
-FIREBASE_PRIVATE_KEY="<private-key-with-literal-\n-newlines>"
+FIREBASE_CLIENT_EMAIL=<your-client-email>
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 
 # ── Security & CORS ───────────────────────────────────────────────────────────
 JWT_SECRET=<generate-a-strong-random-secret>
@@ -59,16 +73,16 @@ CORS_ORIGIN=https://your-app.vercel.app   # ← update after Vercel deploy
 PORT=4001
 ```
 
-6. **Database Migration & Seeding:**
+5. **Database Migration & Seeding:**
    Add a `prestart:prod` script in `server/package.json` to auto-migrate on every deploy:
    ```json
    "prestart:prod": "npx prisma migrate deploy && npm run db:seed"
    ```
-   Railway will run migrations and seed the default tracks automatically.
+   Render will run migrations and seed the default tracks automatically when starting the service.
 
 ---
 
-## 3. Frontend Deployment (Vercel)
+## 4. Frontend Deployment (Vercel)
 
 1. Log into [Vercel](https://vercel.com/).
 2. Click **Add New → Project** and import your PrepForge repository.
@@ -84,13 +98,13 @@ NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=<your-project>.appspot.com
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=<your-messaging-sender-id>
 NEXT_PUBLIC_FIREBASE_APP_ID=<your-app-id>
 
-# ── Backend URLs (use your Railway service URL) ───────────────────────────────
-NEXT_PUBLIC_API_URL=https://<your-railway-service>.up.railway.app/api
-NEXT_PUBLIC_WS_URL=https://<your-railway-service>.up.railway.app
+# ── Backend URLs (use your Render service URL) ───────────────────────────────
+NEXT_PUBLIC_API_URL=https://<your-render-service>.onrender.com/api
+NEXT_PUBLIC_WS_URL=https://<your-render-service>.onrender.com
 ```
 
 5. Click **Deploy**. Vercel builds the Next.js app and gives you a production URL.
-6. **Important:** After deploy, update `CORS_ORIGIN` in Railway to match your Vercel URL.
+6. **Important:** After deploy, update `CORS_ORIGIN` in Render to match your Vercel URL.
 
 ---
 
@@ -157,14 +171,14 @@ npm run dev
 
 | Variable | Where | Required |
 |---|---|---|
-| `DATABASE_URL` | Railway (Backend) | ✅ |
-| `REDIS_URL` | Railway (Backend) | ✅ |
-| `FIREBASE_PROJECT_ID` | Railway (Backend) | ✅ |
-| `FIREBASE_CLIENT_EMAIL` | Railway (Backend) | ✅ |
-| `FIREBASE_PRIVATE_KEY` | Railway (Backend) | ✅ |
-| `JWT_SECRET` | Railway (Backend) | ✅ |
-| `CORS_ORIGIN` | Railway (Backend) | ✅ |
-| `PORT` | Railway (Backend) | ✅ |
+| `DATABASE_URL` | Render (Backend) | ✅ |
+| `REDIS_URL` | Render (Backend) | ✅ |
+| `FIREBASE_PROJECT_ID` | Render (Backend) | ✅ |
+| `FIREBASE_CLIENT_EMAIL` | Render (Backend) | ✅ |
+| `FIREBASE_PRIVATE_KEY` | Render (Backend) | ✅ |
+| `JWT_SECRET` | Render (Backend) | ✅ |
+| `CORS_ORIGIN` | Render (Backend) | ✅ |
+| `PORT` | Render (Backend) | ✅ |
 | `NEXT_PUBLIC_FIREBASE_API_KEY` | Vercel (Frontend) | ✅ |
 | `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Vercel (Frontend) | ✅ |
 | `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Vercel (Frontend) | ✅ |

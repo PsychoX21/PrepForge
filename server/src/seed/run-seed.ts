@@ -100,18 +100,18 @@ async function seed() {
               },
             });
 
-            for (const itemData of subData.items || []) {
-              await prisma.item.create({
-                data: {
+            if (subData.items && subData.items.length > 0) {
+              await prisma.item.createMany({
+                data: subData.items.map((itemData) => ({
                   name: itemData.name,
                   type: itemData.type as any,
                   url: (itemData as any).url || null,
                   difficulty: (itemData as any).difficulty || null,
                   order: itemData.order,
                   subUnitId: subUnit.id,
-                },
+                })),
               });
-              itemCount++;
+              itemCount += subData.items.length;
             }
           }
         }

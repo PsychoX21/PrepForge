@@ -140,9 +140,9 @@ export class SeedService {
                 },
               });
 
-              for (const itemData of subData.items || []) {
-                await this.prisma.item.create({
-                  data: {
+              if (subData.items && subData.items.length > 0) {
+                await this.prisma.item.createMany({
+                  data: subData.items.map((itemData) => ({
                     name: itemData.name,
                     description: itemData.description || null,
                     type: itemData.type as any,
@@ -150,7 +150,7 @@ export class SeedService {
                     difficulty: (itemData.difficulty as any) || null,
                     order: itemData.order,
                     subUnitId: subUnit.id,
-                  },
+                  })),
                 });
               }
             }

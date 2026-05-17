@@ -52,6 +52,10 @@ export class GroupsService {
       },
       include: {
         _count: { select: { members: true, tracks: true } },
+        members: {
+          where: { userId },
+          select: { role: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });

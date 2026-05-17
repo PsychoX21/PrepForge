@@ -170,6 +170,13 @@ export class RealtimeGateway
   ) {
     if (!client.userId) return;
 
+    if (!data.content?.trim() || data.content.length > 2000) return;
+
+    if (data.groupId !== client.groupId) {
+      this.logger.warn(`User ${client.userId} tried to send chat to unauthorized room: ${data.groupId}`);
+      return;
+    }
+
     const message = await this.prisma.chatMessage.create({
       data: {
         content: data.content,

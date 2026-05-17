@@ -118,8 +118,7 @@ export default function GroupsPage() {
         {isLoading
           ? Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-[220px]" />)
           : (groups ?? []).map((group) => {
-              const myMembership = (group.members ?? []).find(() => true); // first membership
-              const role = myMembership?.role ?? "MEMBER";
+              const role = group.members?.[0]?.role ?? "MEMBER";
               return (
                 <motion.div key={group.id} variants={fadeUp}>
                   <Card variant="interactive" className="h-full">

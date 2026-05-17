@@ -27,33 +27,33 @@ export class UsersService {
   }
 
   async getStats(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        xp: true,
-        level: true,
-        streak: true,
-        longestStreak: true,
-      },
-    });
-
-    const totalItems = await this.prisma.userItemProgress.count({
-      where: { userId },
-    });
-
-    const completedItems = await this.prisma.userItemProgress.count({
-      where: { userId, status: 'DONE' },
-    });
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const completedToday = await this.prisma.userItemProgress.count({
-      where: {
-        userId,
-        status: 'DONE',
-        completedAt: { gte: today },
-      },
-    });
+
+    const [user, totalItems, completedItems, completedToday] = await this.prisma.$transaction([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          xp: true,
+          level: true,
+          streak: true,
+          longestStreak: true,
+        },
+      }),
+      this.prisma.userItemProgress.count({
+        where: { userId },
+      }),
+      this.prisma.userItemProgress.count({
+        where: { userId, status: 'DONE' },
+      }),
+      this.prisma.userItemProgress.count({
+        where: {
+          userId,
+          status: 'DONE',
+          completedAt: { gte: today },
+        },
+      }),
+    ]);
 
     return {
       ...user,
@@ -70,27 +70,22 @@ export class UsersService {
     const since = new Date();
     since.setDate(since.getDate() - days);
 
-      const activities = await this.prisma.activityLog.findMany({
-      where: {
-        userId,
-        createdAt: { gte: since },
-      },
-      select: {
-        createdAt: true,
-      },
-    });
+    const rows = await this.prisma.$queryRaw<{ date: string; count: bigint }[]>`
+      SELECT DATE("created_at" AT TIME ZONE 'UTC')::text as date, COUNT(*)::bigint as count
+      FROM "activity_logs"
+      WHERE "user_id" = ${userId}
+        AND "created_at" >= ${since}
+      GROUP BY DATE("created_at" AT TIME ZONE 'UTC')
+      ORDER BY date
+    `;
 
-    // Build day-level aggregation
-    const heatmap: Record<string, number> = {};
-    activities.forEach((a) => {
-      const date = a.createdAt.toISOString().split('T')[0];
-      heatmap[date] = (heatmap[date] || 0) + 1;
+    return rows.map((r) => {
+      const count = Number(r.count);
+      return {
+        date: r.date,
+        count,
+        level: count >= 10 ? 4 : count >= 6 ? 3 : count >= 3 ? 2 : count >= 1 ? 1 : 0,
+      };
     });
-
-    return Object.entries(heatmap).map(([date, count]) => ({
-      date,
-      count,
-      level: count >= 10 ? 4 : count >= 6 ? 3 : count >= 3 ? 2 : count >= 1 ? 1 : 0,
-    }));
   }
 }

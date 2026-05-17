@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
@@ -88,6 +88,18 @@ export class TracksService {
   async getFullTree(trackId: string, userId: string) {
     const track = await this.prisma.track.findUnique({
       where: { id: trackId },
+    });
+    if (!track) throw new NotFoundException('Track not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: {
+        userId_groupId: { userId, groupId: track.groupId },
+      },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    const fullTrack = await this.prisma.track.findUnique({
+      where: { id: trackId },
       include: {
         categories: {
           orderBy: { order: 'asc' },
@@ -121,73 +133,101 @@ export class TracksService {
       },
     });
 
-    if (!track) throw new NotFoundException('Track not found');
-    return track;
+    if (!fullTrack) throw new NotFoundException('Track not found');
+
+    // Flatten item.progress array to single object
+    const mappedCategories = (fullTrack.categories ?? []).map((cat) => ({
+      ...cat,
+      resources: (cat.resources ?? []).map((res) => ({
+        ...res,
+        units: (res.units ?? []).map((unit) => ({
+          ...unit,
+          subUnits: (unit.subUnits ?? []).map((sub) => ({
+            ...sub,
+            items: (sub.items ?? []).map((item) => ({
+              ...item,
+              progress: item.progress?.[0] ?? null,
+            })),
+          })),
+        })),
+      })),
+    }));
+
+    return {
+      ...fullTrack,
+      categories: mappedCategories,
+    };
   }
 
   async getTrackSummary(trackId: string, userId: string) {
-    const track = await this.prisma.track.findUnique({
-      where: { id: trackId },
-      include: {
-        categories: {
-          include: {
-            resources: {
-              include: {
-                _count: {
-                  select: { units: true },
+    const [track, totalItems, doneItems, starredItems] = await this.prisma.$transaction([
+      this.prisma.track.findUnique({
+        where: { id: trackId },
+        include: {
+          categories: {
+            include: {
+              resources: {
+                include: {
+                  _count: {
+                    select: { units: true },
+                  },
                 },
               },
             },
           },
         },
-      },
-    });
+      }),
+      this.prisma.item.count({
+        where: {
+          subUnit: {
+            unit: {
+              resource: {
+                category: { trackId },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.userItemProgress.count({
+        where: {
+          userId,
+          status: 'DONE',
+          item: {
+            subUnit: {
+              unit: {
+                resource: {
+                  category: { trackId },
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.userItemProgress.count({
+        where: {
+          userId,
+          isStarred: true,
+          item: {
+            subUnit: {
+              unit: {
+                resource: {
+                  category: { trackId },
+                },
+              },
+            },
+          },
+        },
+      }),
+    ]);
 
     if (!track) throw new NotFoundException('Track not found');
 
-    const totalItems = await this.prisma.item.count({
+    const isMember = await this.prisma.groupMember.findUnique({
       where: {
-        subUnit: {
-          unit: {
-            resource: {
-              category: { trackId },
-            },
-          },
-        },
+        userId_groupId: { userId, groupId: track.groupId },
       },
     });
-
-    const doneItems = await this.prisma.userItemProgress.count({
-      where: {
-        userId,
-        status: 'DONE',
-        item: {
-          subUnit: {
-            unit: {
-              resource: {
-                category: { trackId },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    const starredItems = await this.prisma.userItemProgress.count({
-      where: {
-        userId,
-        isStarred: true,
-        item: {
-          subUnit: {
-            unit: {
-              resource: {
-                category: { trackId },
-              },
-            },
-          },
-        },
-      },
-    });
+    if (!isMember) throw new ForbiddenException('Access denied');
 
     return {
       ...track,

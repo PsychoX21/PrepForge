@@ -42,13 +42,19 @@ function Skeleton({ className = "" }: { className?: string }) {
 
 export default function CategoryDetailPage({ params }: PageProps) {
   const { trackId, catId } = use(params);
-  const { data: track, isLoading, error, refetch } = useTrackTree(trackId);
-  const { update, isLoading: isUpdating } = useUpdateProgress();
+  const { data: track, isLoading, error } = useTrackTree(trackId);
+  const { update } = useUpdateProgress();
 
   const [updatingItemId, setUpdatingItemId] = React.useState<string | null>(null);
+  const [localCategory, setLocalCategory] = React.useState<any>(null);
 
-  // Find target category
-  const category = track?.categories?.find((c) => c.id === catId) ?? null;
+  // Sync with track load
+  React.useEffect(() => {
+    if (track) {
+      const cat = track.categories?.find((c) => c.id === catId) ?? null;
+      setLocalCategory(cat);
+    }
+  }, [track, catId]);
 
   const handleUpdateItem = async (
     itemId: string,
@@ -58,12 +64,46 @@ export default function CategoryDetailPage({ params }: PageProps) {
       isWatchLater?: boolean;
     }
   ) => {
+    // 1. Optimistic Update local state immediately
+    setLocalCategory((prev: any) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        resources: prev.resources?.map((res: any) => ({
+          ...res,
+          units: res.units?.map((unit: any) => ({
+            ...unit,
+            subUnits: unit.subUnits?.map((sub: any) => ({
+              ...sub,
+              items: sub.items?.map((item: any) => {
+                if (item.id === itemId) {
+                  return {
+                    ...item,
+                    progress: {
+                      ...(item.progress ?? {}),
+                      ...updates,
+                    },
+                  };
+                }
+                return item;
+              }),
+            })),
+          })),
+        })),
+      };
+    });
+
     setUpdatingItemId(itemId);
     try {
+      // 2. Persist changes to server in background
       await update(itemId, updates);
-      await refetch();
     } catch (err) {
-      console.error("Failed to update item:", err);
+      console.error("Failed to update item, rolling back state:", err);
+      // Rollback to original server values
+      if (track) {
+        const cat = track.categories?.find((c) => c.id === catId) ?? null;
+        setLocalCategory(cat);
+      }
     } finally {
       setUpdatingItemId(null);
     }
@@ -91,7 +131,7 @@ export default function CategoryDetailPage({ params }: PageProps) {
     );
   }
 
-  if (!category) {
+  if (!localCategory) {
     return (
       <div className="text-center py-16 text-text-muted space-y-4">
         <BookOpen className="w-10 h-10 mx-auto mb-4 opacity-40" />
@@ -106,10 +146,10 @@ export default function CategoryDetailPage({ params }: PageProps) {
   // Calculate items stats
   let totalItems = 0;
   let doneItems = 0;
-  category.resources?.forEach((res) => {
-    res.units?.forEach((unit) => {
-      unit.subUnits?.forEach((sub) => {
-        sub.items?.forEach((item) => {
+  localCategory.resources?.forEach((res: any) => {
+    res.units?.forEach((unit: any) => {
+      unit.subUnits?.forEach((sub: any) => {
+        sub.items?.forEach((item: any) => {
           totalItems++;
           const status = item.progress?.status;
           if (status === "DONE") {
@@ -136,10 +176,10 @@ export default function CategoryDetailPage({ params }: PageProps) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <span className="text-3xl">{category.icon || "📚"}</span>
-              <h1 className="text-2xl font-bold font-[var(--font-outfit)]">{category.name}</h1>
+              <span className="text-3xl">{localCategory.icon || "📚"}</span>
+              <h1 className="text-2xl font-bold font-[var(--font-outfit)]">{localCategory.name}</h1>
             </div>
-            <p className="text-sm text-text-secondary max-w-xl">{category.description || "Master these resources to boost your interview and test preparation."}</p>
+            <p className="text-sm text-text-secondary max-w-xl">{localCategory.description || "Master these resources to boost your interview and test preparation."}</p>
           </div>
           <div className="text-left sm:text-right flex-shrink-0">
             <span className="text-2xl font-bold font-[var(--font-outfit)] bg-gradient-to-r from-accent-blue to-accent-purple bg-clip-text text-transparent">
@@ -156,10 +196,10 @@ export default function CategoryDetailPage({ params }: PageProps) {
           </div>
         </div>
       </motion.div>
-
+ 
       {/* Resources & Items list */}
       <div className="space-y-8">
-        {category.resources?.map((res) => (
+        {localCategory.resources?.map((res: any) => (
           <motion.div key={res.id} variants={fadeUp} className="space-y-4">
             <div className="flex items-start justify-between border-b border-border-default/20 pb-3">
               <div>
@@ -182,7 +222,7 @@ export default function CategoryDetailPage({ params }: PageProps) {
 
             {/* Units tree */}
             <div className="space-y-6">
-              {res.units?.map((unit) => (
+              {res.units?.map((unit: any) => (
                 <Card key={unit.id} variant="default" className="overflow-hidden border border-border-default/30 bg-bg-elevated/10">
                   <div className="px-5 py-3 border-b border-border-default/20 bg-bg-elevated/40">
                     <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wide">{unit.name}</h3>
@@ -190,7 +230,7 @@ export default function CategoryDetailPage({ params }: PageProps) {
                   </div>
 
                   <CardContent className="p-0 divide-y divide-border-default/10">
-                    {unit.subUnits?.map((sub) => (
+                    {unit.subUnits?.map((sub: any) => (
                       <div key={sub.id} className="p-4 sm:p-5 space-y-3">
                         <div className="flex items-center justify-between">
                           <h4 className="text-sm font-medium text-text-secondary">{sub.name}</h4>
@@ -199,7 +239,7 @@ export default function CategoryDetailPage({ params }: PageProps) {
 
                         {/* Items listed */}
                         <div className="space-y-2">
-                          {sub.items?.map((item) => {
+                          {sub.items?.map((item: any) => {
                             const isStarred = item.progress?.isStarred ?? false;
                             const isWatchLater = item.progress?.isWatchLater ?? false;
                             const status = item.progress?.status ?? "NOT_STARTED";

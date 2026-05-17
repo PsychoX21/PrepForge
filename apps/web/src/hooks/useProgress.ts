@@ -121,6 +121,7 @@ export function useWatchLater() {
 /** Mutation: update status/starred/watch-later for a single item. */
 export function useUpdateProgress() {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const update = useCallback(
     async (
@@ -133,8 +134,13 @@ export function useUpdateProgress() {
       }
     ) => {
       setIsLoading(true);
+      setError(null);
       try {
         return await api.patch(`/progress/${itemId}`, data);
+      } catch (err: any) {
+        const msg = err instanceof Error ? err.message : "Failed to update progress";
+        setError(msg);
+        throw err;
       } finally {
         setIsLoading(false);
       }
@@ -142,5 +148,5 @@ export function useUpdateProgress() {
     []
   );
 
-  return { update, isLoading };
+  return { update, isLoading, error };
 }

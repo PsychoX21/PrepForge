@@ -36,7 +36,11 @@ export class ProgressService {
       update: {
         ...data,
         completedAt:
-          data.status === 'DONE' ? new Date() : undefined,
+          data.status === 'DONE'
+            ? new Date()
+            : data.status !== undefined
+            ? null
+            : undefined,
       },
       create: {
         userId,
@@ -46,7 +50,7 @@ export class ProgressService {
         isWatchLater: data.isWatchLater || false,
         completion: data.completion || 0,
         completedAt:
-          data.status === 'DONE' ? new Date() : undefined,
+          data.status === 'DONE' ? new Date() : null,
       },
     });
 

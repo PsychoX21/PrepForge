@@ -10,11 +10,22 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly configService: ConfigService) {}
 
   onModuleInit() {
-    const redisUrl = this.configService.get<string>('REDIS_URL') || 'redis://localhost:6379';
-    this.logger.log(`Connecting to Redis at: ${redisUrl}`);
+    let redisUrl = this.configService.get<string>('REDIS_URL') || 'redis://localhost:6379';
     
+    // Auto-upgrade to TLS for Upstash endpoints
+    if (redisUrl.includes('upstash.io') && redisUrl.startsWith('redis://')) {
+      redisUrl = redisUrl.replace('redis://', 'rediss://');
+    }
+    
+    // Sanitize credentials in logs to protect passwords
+    const sanitizedUrl = redisUrl.replace(/:[^@]+@/, ':****@');
+    this.logger.log(`Connecting to Redis at: ${sanitizedUrl}`);
+    
+    const useTls = redisUrl.startsWith('rediss://');
     this.client = new Redis(redisUrl, {
-      maxRetriesPerRequest: 3,
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+      tls: useTls ? { rejectUnauthorized: false } : undefined,
     });
 
     this.client.on('connect', () => {

@@ -11,6 +11,11 @@ export class TracksService {
   ) {}
 
   async findByGroup(groupId: string, userId: string) {
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId } },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
     const tracks = await this.prisma.track.findMany({
       where: { groupId },
       include: {
@@ -224,18 +229,15 @@ export class TracksService {
     const [track, totalItems, doneItems, starredItems] = await this.prisma.$transaction([
       this.prisma.track.findUnique({
         where: { id: trackId },
-        include: {
-          categories: {
-            include: {
-              resources: {
-                include: {
-                  _count: {
-                    select: { units: true },
-                  },
-                },
-              },
-            },
-          },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          icon: true,
+          color: true,
+          groupId: true,
+          createdAt: true,
+          updatedAt: true,
         },
       }),
       this.prisma.item.count({
@@ -867,5 +869,47 @@ export class TracksService {
 
     await this.redis.invalidateTrackPatterns(item.subUnit.unit.resource.category.trackId);
     return deleted;
+  }
+
+  async getCategoryDetails(catId: string, userId: string) {
+    const cat = await this.prisma.category.findUnique({
+      where: { id: catId },
+      include: {
+        track: { select: { groupId: true } },
+      },
+    });
+    if (!cat) throw new NotFoundException('Category not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: {
+        userId_groupId: {
+          userId,
+          groupId: cat.track.groupId,
+        },
+      },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
+    return this.prisma.category.findUnique({
+      where: { id: catId },
+      include: {
+        resources: {
+          include: {
+            units: {
+              include: {
+                subUnits: {
+                  include: {
+                    items: true,
+                  },
+                  orderBy: { order: 'asc' },
+                },
+              },
+              orderBy: { order: 'asc' },
+            },
+          },
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
   }
 }

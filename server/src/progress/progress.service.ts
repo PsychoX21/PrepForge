@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { GamificationService } from '../gamification/gamification.service';
 import { ProgressStatus } from '@prisma/client';
@@ -99,9 +99,11 @@ export class ProgressService {
     return { total, done, inProgress, starred };
   }
 
-  async getStarred(userId: string) {
+  async getStarred(userId: string, skip = 0, take = 50) {
     const progressList = await this.prisma.userItemProgress.findMany({
       where: { userId, isStarred: true },
+      skip,
+      take,
       include: {
         item: {
           include: {
@@ -133,9 +135,11 @@ export class ProgressService {
     }));
   }
 
-  async getWatchLater(userId: string) {
+  async getWatchLater(userId: string, skip = 0, take = 50) {
     const progressList = await this.prisma.userItemProgress.findMany({
       where: { userId, isWatchLater: true },
+      skip,
+      take,
       include: {
         item: {
           include: {
@@ -207,7 +211,7 @@ export class ProgressService {
     const playlist = await this.prisma.playlist.findFirst({
       where: { id: playlistId, userId },
     });
-    if (!playlist) throw new Error("Playlist not found or access denied");
+    if (!playlist) throw new NotFoundException("Playlist not found or access denied");
 
     return this.prisma.playlist.delete({
       where: { id: playlistId },
@@ -218,7 +222,7 @@ export class ProgressService {
     const playlist = await this.prisma.playlist.findFirst({
       where: { id: playlistId, userId },
     });
-    if (!playlist) throw new Error("Playlist not found or access denied");
+    if (!playlist) throw new NotFoundException("Playlist not found or access denied");
 
     return this.prisma.playlistItem.upsert({
       where: {
@@ -236,7 +240,7 @@ export class ProgressService {
     const playlist = await this.prisma.playlist.findFirst({
       where: { id: playlistId, userId },
     });
-    if (!playlist) throw new Error("Playlist not found or access denied");
+    if (!playlist) throw new NotFoundException("Playlist not found or access denied");
 
     return this.prisma.playlistItem.delete({
       where: {

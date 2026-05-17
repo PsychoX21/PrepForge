@@ -35,10 +35,9 @@ async function bootstrap() {
         return;
       }
       const sanitized = origin.replace(/\/$/, '');
-      const isAllowed = allowedOrigins.some((o) => {
-        const sanitizedAllowed = o.replace(/\/$/, '');
-        return sanitized === sanitizedAllowed || sanitized.startsWith(sanitizedAllowed);
-      });
+      const isAllowed = allowedOrigins.some((o) =>
+        sanitized === o.replace(/\/$/, '')
+      );
       if (isAllowed) {
         callback(null, true);
       } else {

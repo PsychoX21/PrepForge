@@ -222,8 +222,8 @@ export class GroupsService {
       throw new NotFoundException('Group not found or you are not a member');
     }
 
-    if (!['OWNER', 'ADMIN'].includes(member.role)) {
-      throw new ForbiddenException('Only admins or owners can delete this group');
+    if (member.role !== 'OWNER') {
+      throw new ForbiddenException('Only the group owner can delete this group');
     }
 
     // Perform delete. Prisma cascades clean up all memberships, tracks, chat, etc.

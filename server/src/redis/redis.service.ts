@@ -58,6 +58,21 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     try {
       const stringified = JSON.stringify(value);
       await this.client.set(key, stringified, 'EX', ttlSeconds);
+
+      // Track keys in sets for fast invalidation without O(N) SCAN
+      const userMatch = key.match(/user:([a-zA-Z0-9_-]+)/);
+      if (userMatch && userMatch[1]) {
+        const userId = userMatch[1];
+        await this.client.sadd(`user_keys:${userId}`, key);
+        await this.client.expire(`user_keys:${userId}`, ttlSeconds);
+      }
+
+      const trackMatch = key.match(/track:([a-zA-Z0-9_-]+)/);
+      if (trackMatch && trackMatch[1]) {
+        const trackId = trackMatch[1];
+        await this.client.sadd(`track_keys:${trackId}`, key);
+        await this.client.expire(`track_keys:${trackId}`, ttlSeconds);
+      }
     } catch (err) {
       this.logger.warn(`Failed to SET in Redis for key ${key}: ${err.message}`);
     }
@@ -95,7 +110,13 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   async invalidateUserPatterns(userId: string): Promise<void> {
     try {
-      await this.invalidatePattern(`*user:${userId}*`);
+      const setKey = `user_keys:${userId}`;
+      const keys = await this.client.smembers(setKey);
+      if (keys.length > 0) {
+        await this.client.del(...keys);
+        this.logger.log(`Invalidated ${keys.length} cache keys for user: ${userId}`);
+      }
+      await this.client.del(setKey);
     } catch (err) {
       this.logger.warn(`Failed to invalidate keys for user ${userId}: ${err.message}`);
     }
@@ -103,7 +124,13 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   async invalidateTrackPatterns(trackId: string): Promise<void> {
     try {
-      await this.invalidatePattern(`*track:${trackId}*`);
+      const setKey = `track_keys:${trackId}`;
+      const keys = await this.client.smembers(setKey);
+      if (keys.length > 0) {
+        await this.client.del(...keys);
+        this.logger.log(`Invalidated ${keys.length} cache keys for track: ${trackId}`);
+      }
+      await this.client.del(setKey);
     } catch (err) {
       this.logger.warn(`Failed to invalidate keys for track ${trackId}: ${err.message}`);
     }

@@ -28,6 +28,15 @@ export class ApiError extends Error {
 
 // ─── Core Fetch ─────────────────────────────────────────────────────────────
 
+function getTokenExpiry(token: string): number {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return (payload.exp ?? 0) * 1000; // convert to ms
+  } catch {
+    return Date.now() + 3600 * 1000;
+  }
+}
+
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
 async function getCachedToken(): Promise<string | null> {
@@ -38,10 +47,9 @@ async function getCachedToken(): Promise<string | null> {
 
   const token = await getIdToken();
   if (token) {
-    // Firebase ID tokens typically expire after 1 hour (3600 seconds)
     cachedToken = {
       value: token,
-      expiresAt: Date.now() + 3600 * 1000,
+      expiresAt: getTokenExpiry(token),
     };
   } else {
     cachedToken = null;

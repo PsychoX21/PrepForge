@@ -12,7 +12,6 @@ export class ProgressController {
 
   /** PATCH /api/progress/:itemId — Update item progress */
   @Patch(':itemId')
-  @Throttle({ default: { ttl: 60000, limit: 10 } })
   update(
     @Param('itemId') itemId: string,
     @CurrentUser() user: User,
@@ -38,14 +37,26 @@ export class ProgressController {
 
   /** GET /api/progress/starred — Get all starred items */
   @Get('starred')
-  getStarred(@CurrentUser() user: User) {
-    return this.progressService.getStarred(user.id);
+  getStarred(
+    @CurrentUser() user: User,
+    @Query('skip') skip?: string,
+    @Query('take') take?: string,
+  ) {
+    const skipNum = skip ? parseInt(skip, 10) : undefined;
+    const takeNum = take ? parseInt(take, 10) : undefined;
+    return this.progressService.getStarred(user.id, skipNum, takeNum);
   }
 
   /** GET /api/progress/watch-later — Get watch-later queue */
   @Get('watch-later')
-  getWatchLater(@CurrentUser() user: User) {
-    return this.progressService.getWatchLater(user.id);
+  getWatchLater(
+    @CurrentUser() user: User,
+    @Query('skip') skip?: string,
+    @Query('take') take?: string,
+  ) {
+    const skipNum = skip ? parseInt(skip, 10) : undefined;
+    const takeNum = take ? parseInt(take, 10) : undefined;
+    return this.progressService.getWatchLater(user.id, skipNum, takeNum);
   }
 
   /** GET /api/progress/playlists — Get all custom playlists */

@@ -4,27 +4,11 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { XP_ACTIONS, LEVEL_THRESHOLDS } from '@prepforge/shared';
 
 // ─── XP Configuration ───────────────────────────────────────────────────────
 
-const XP_TABLE: Record<string, number> = {
-  MARK_ITEM_DONE: 10,
-  MARK_SUBUNIT_DONE: 25,
-  MARK_UNIT_DONE: 50,
-  MARK_RESOURCE_DONE: 100,
-  ADD_COMMENT: 5,
-  ADD_NOTE: 5,
-  SHARE_PUBLIC_NOTE: 15,
-  DAILY_LOGIN: 10,
-  STREAK_BONUS_7: 50,
-  STREAK_BONUS_30: 200,
-  STREAK_BONUS_100: 500,
-};
-
-const LEVEL_THRESHOLDS = [
-  0, 100, 250, 500, 1000, 2000, 3500, 5500, 8000, 11000, 15000, 20000,
-  27000, 35000, 45000, 60000, 80000, 100000, 130000, 170000,
-];
+const XP_TABLE: Record<string, number> = XP_ACTIONS;
 
 @Injectable()
 export class GamificationService {
@@ -40,42 +24,34 @@ export class GamificationService {
     const totalXp = actions.reduce((sum, a) => sum + (XP_TABLE[a] || 0), 0);
     if (totalXp === 0) return;
 
-    // Update user XP
-    const user = await this.prisma.user.update({
-      where: { id: userId },
-      data: { xp: { increment: totalXp } },
-    });
+    return await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.update({
+        where: { id: userId },
+        data: { xp: { increment: totalXp } },
+      });
 
-    const newLevel = this.calculateLevel(user.xp);
-    const updates: Promise<unknown>[] = [];
-
-    // Check for level-up
-    if (newLevel > user.level) {
-      updates.push(
-        this.prisma.user.update({
+      const newLevel = this.calculateLevel(user.xp);
+      if (newLevel > user.level) {
+        await tx.user.update({
           where: { id: userId },
           data: { level: newLevel },
-        }),
-      );
-      this.logger.log(`🎉 User ${userId} leveled up to ${newLevel}!`);
-    }
+        });
+        this.logger.log(`🎉 User ${userId} leveled up to ${newLevel}!`);
+      }
 
-    // Batch all activity log entries in one createMany
-    const validActions = actions.filter((a) => XP_TABLE[a]);
-    if (validActions.length > 0) {
-      updates.push(
-        this.prisma.activityLog.createMany({
+      const validActions = actions.filter((a) => XP_TABLE[a]);
+      if (validActions.length > 0) {
+        await tx.activityLog.createMany({
           data: validActions.map((a) => ({
             userId,
             action: a,
             xpAwarded: XP_TABLE[a],
           })),
-        }),
-      );
-    }
+        });
+      }
 
-    await Promise.all(updates);
-    return { xpAwarded: totalXp, totalXp: user.xp, level: newLevel };
+      return { xpAwarded: totalXp, totalXp: user.xp, level: newLevel };
+    });
   }
 
   /**
@@ -97,9 +73,9 @@ export class GamificationService {
     }
 
     let newStreak = user.streak;
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayDate = new Date(today + 'T00:00:00Z');
+    yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
+    const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
 
     if (user.lastActiveDate === yesterdayStr) {
       // Continuing streak

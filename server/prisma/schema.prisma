@@ -266,7 +266,9 @@ model UserItemProgress {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([userId, itemId])
-  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, isStarred])
+  @@index([userId, isWatchLater])
   @@index([itemId])
   @@map("user_item_progress")
 }
@@ -324,6 +326,7 @@ model ChatMessage {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([groupId, createdAt])
+  @@index([threadId])
   @@map("chat_messages")
 }
 
@@ -357,6 +360,7 @@ model Playlist {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@index([userId])
   @@map("playlists")
 }
 

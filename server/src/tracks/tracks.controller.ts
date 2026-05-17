@@ -44,6 +44,12 @@ export class TracksController {
     return this.tracksService.getTrackSummary(id, user.id);
   }
 
+  /** GET /api/tracks/categories/:catId/details — Fetch category details */
+  @Get('categories/:catId/details')
+  getCategoryDetails(@Param('catId') catId: string, @CurrentUser() user: User) {
+    return this.tracksService.getCategoryDetails(catId, user.id);
+  }
+
   // ─── Custom CRUD Endpoints ────────────────────────────────────────────────
 
   @Post()

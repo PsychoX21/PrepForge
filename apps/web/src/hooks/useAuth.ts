@@ -59,11 +59,19 @@ export function useAuth() {
     }
 
     const unsubscribe = onAuthChange(async (fbUser) => {
+      const isDemoNow = typeof window !== "undefined" && sessionStorage.getItem("prepforge_demo_mode") === "true";
+      if (isDemoNow || fbUser?.uid === "demo-uid") {
+        setInitialized(true);
+        setLoading(false);
+        return;
+      }
+
       setFirebaseUser(fbUser);
 
       if (fbUser) {
         try {
           const token = await fbUser.getIdToken();
+          if (token === "demo-token") return;
           const userData = await api.post<{ data: User }>("/auth/verify", {
             idToken: token,
           });

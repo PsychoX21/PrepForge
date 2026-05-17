@@ -39,11 +39,17 @@ export class RealtimeGateway
 
   private readonly logger = new Logger(RealtimeGateway.name);
 
-  // Track online users: userId -> { socketId, currentFocus, groupId }
+  // Track online users: userId -> { sockets, currentFocus, groupId }
   private onlineUsers = new Map<
     string,
-    { socketId: string; currentFocus: string | null; groupId: string | null }
+    { sockets: Set<string>; currentFocus: string | null; groupId: string | null }
   >();
+
+  // Track group members: groupId -> Set<userId> (O(Group Size) optimization)
+  private groupMembers = new Map<string, Set<string>>();
+
+  // Cooldown tracker for chat messaging rate-limiting (max 1 message/sec)
+  private lastMessageTime = new Map<string, number>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -71,11 +77,17 @@ export class RealtimeGateway
       }
 
       client.userId = user.id;
-      this.onlineUsers.set(user.id, {
-        socketId: client.id,
-        currentFocus: null,
-        groupId: null,
-      });
+      
+      const existing = this.onlineUsers.get(user.id);
+      if (existing) {
+        existing.sockets.add(client.id);
+      } else {
+        this.onlineUsers.set(user.id, {
+          sockets: new Set([client.id]),
+          currentFocus: null,
+          groupId: null,
+        });
+      }
 
       this.logger.log(`User connected: ${user.displayName} (${client.id})`);
     } catch {
@@ -86,13 +98,27 @@ export class RealtimeGateway
   handleDisconnect(client: UserSocket) {
     if (client.userId) {
       const userData = this.onlineUsers.get(client.userId);
-      if (userData?.groupId) {
-        this.server.to(`group:${userData.groupId}`).emit('user:offline', {
-          userId: client.userId,
-        });
+      if (userData) {
+        userData.sockets.delete(client.id);
+        
+        // Only completely disconnect when the LAST open tab is closed
+        if (userData.sockets.size === 0) {
+          if (userData.groupId) {
+            const members = this.groupMembers.get(userData.groupId);
+            if (members) {
+              members.delete(client.userId);
+              if (members.size === 0) {
+                this.groupMembers.delete(userData.groupId);
+              }
+            }
+            this.server.to(`group:${userData.groupId}`).emit('user:offline', {
+              userId: client.userId,
+            });
+          }
+          this.onlineUsers.delete(client.userId);
+        }
       }
-      this.onlineUsers.delete(client.userId);
-      this.logger.log(`User disconnected: ${client.userId}`);
+      this.logger.log(`User disconnected: ${client.userId} (${client.id})`);
     }
   }
 
@@ -134,6 +160,14 @@ export class RealtimeGateway
       userData.groupId = data.groupId;
     }
 
+    // Add user to the group presence set
+    let members = this.groupMembers.get(data.groupId);
+    if (!members) {
+      members = new Set();
+      this.groupMembers.set(data.groupId, members);
+    }
+    members.add(client.userId);
+
     // Broadcast presence
     this.broadcastPresence(data.groupId);
   }
@@ -169,6 +203,15 @@ export class RealtimeGateway
     data: { content: string; groupId: string; threadId?: string },
   ) {
     if (!client.userId) return;
+
+    // Chat Message Cooldown Rate Limiting (max 1 message per second)
+    const now = Date.now();
+    const lastTime = this.lastMessageTime.get(client.userId) || 0;
+    if (now - lastTime < 1000) {
+      client.emit('error', { message: 'Too many messages. Cooldown is active.' });
+      return;
+    }
+    this.lastMessageTime.set(client.userId, now);
 
     if (!data.content?.trim() || data.content.length > 2000) return;
 
@@ -218,9 +261,13 @@ export class RealtimeGateway
       currentFocus: string | null;
     }> = [];
 
-    for (const [userId, data] of this.onlineUsers.entries()) {
-      if (data.groupId === groupId) {
-        online.push({ userId, currentFocus: data.currentFocus });
+    const members = this.groupMembers.get(groupId);
+    if (members) {
+      for (const userId of members) {
+        const data = this.onlineUsers.get(userId);
+        if (data) {
+          online.push({ userId, currentFocus: data.currentFocus });
+        }
       }
     }
 

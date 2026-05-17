@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/common";
+import Link from "next/link";
 import {
   usePlaylists,
   useCreatePlaylist,
@@ -210,7 +211,16 @@ export default function PlaylistsPage() {
                             <div className="flex items-center gap-3 min-w-0">
                               <FolderHeart className="w-4 h-4 text-accent-blue flex-shrink-0" />
                               <div className="min-w-0">
-                                <p className="text-sm font-semibold text-text-primary truncate">{pi.item?.name}</p>
+                                {pi.item?.subUnit?.unit?.resource?.category?.trackId && pi.item?.subUnit?.unit?.resource?.category?.id ? (
+                                  <Link
+                                    href={`/tracks/${pi.item.subUnit.unit.resource.category.trackId}/${pi.item.subUnit.unit.resource.category.id}`}
+                                    className="text-sm font-semibold text-text-primary hover:text-accent-blue hover:underline transition-colors truncate block"
+                                  >
+                                    {pi.item?.name}
+                                  </Link>
+                                ) : (
+                                  <p className="text-sm font-semibold text-text-primary truncate">{pi.item?.name}</p>
+                                )}
                                 <p className="text-[10px] text-text-muted capitalize">
                                   {pi.item?.type?.toLowerCase() || "item"}
                                 </p>

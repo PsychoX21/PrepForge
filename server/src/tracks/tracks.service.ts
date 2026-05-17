@@ -11,6 +11,10 @@ export class TracksService {
   ) {}
 
   async findByGroup(groupId: string, userId: string) {
+    if (!groupId || groupId === 'null' || groupId === 'undefined') {
+      return [];
+    }
+
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId } },
     });

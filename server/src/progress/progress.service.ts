@@ -72,7 +72,7 @@ export class ProgressService {
   }
 
   async getSummary(userId: string, groupId?: string) {
-    const whereClause = groupId
+    const progressWhereClause = groupId
       ? {
           userId,
           item: {
@@ -89,11 +89,25 @@ export class ProgressService {
         }
       : { userId };
 
+    const itemWhereClause = groupId
+      ? {
+          subUnit: {
+            unit: {
+              resource: {
+                category: {
+                  track: { groupId },
+                },
+              },
+            },
+          },
+        }
+      : {};
+
     const [total, done, inProgress, starred] = await this.prisma.$transaction([
-      this.prisma.userItemProgress.count({ where: whereClause }),
-      this.prisma.userItemProgress.count({ where: { ...whereClause, status: 'DONE' } }),
-      this.prisma.userItemProgress.count({ where: { ...whereClause, status: 'IN_PROGRESS' } }),
-      this.prisma.userItemProgress.count({ where: { ...whereClause, isStarred: true } }),
+      this.prisma.item.count({ where: itemWhereClause }),
+      this.prisma.userItemProgress.count({ where: { ...progressWhereClause, status: 'DONE' } }),
+      this.prisma.userItemProgress.count({ where: { ...progressWhereClause, status: 'IN_PROGRESS' } }),
+      this.prisma.userItemProgress.count({ where: { ...progressWhereClause, isStarred: true } }),
     ]);
 
     return { total, done, inProgress, starred };
@@ -147,7 +161,13 @@ export class ProgressService {
               include: {
                 unit: {
                   include: {
-                    resource: { select: { name: true, type: true } },
+                    resource: {
+                      include: {
+                        category: {
+                          include: { track: { select: { name: true, color: true } } },
+                        },
+                      },
+                    },
                   },
                 },
               },

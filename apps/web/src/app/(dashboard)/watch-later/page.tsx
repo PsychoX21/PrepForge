@@ -8,6 +8,7 @@ import { Clock, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/common";
+import Link from "next/link";
 import { useWatchLater } from "@/hooks/useProgress";
 
 const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } };
@@ -59,7 +60,16 @@ export default function WatchLaterPage() {
                 <CardContent className="py-3 flex items-center gap-4">
                   <Clock className="w-4 h-4 text-accent-blue flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-text-primary">{item.name}</p>
+                    {item.subUnit?.unit?.resource?.category?.trackId && item.subUnit?.unit?.resource?.category?.id ? (
+                      <Link
+                        href={`/tracks/${item.subUnit.unit.resource.category.trackId}/${item.subUnit.unit.resource.category.id}`}
+                        className="text-sm font-medium text-text-primary hover:text-accent-blue hover:underline transition-colors truncate block"
+                      >
+                        {item.name}
+                      </Link>
+                    ) : (
+                      <p className="text-sm font-medium text-text-primary">{item.name}</p>
+                    )}
                     <p className="text-xs text-text-muted capitalize">{item.type?.toLowerCase()}</p>
                   </div>
                   {item.difficulty && (

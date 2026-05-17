@@ -4,7 +4,7 @@
  * Profile settings page.
  * Allows updating user profile info and executing sign out.
  */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { User, LogOut, Check, AlertCircle, Sparkles, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -22,6 +22,13 @@ export default function SettingsPage() {
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
   const [photoUrl, setPhotoUrl] = useState(user?.photoUrl ?? "");
+
+  useEffect(() => {
+    if (user) {
+      setDisplayName(user.displayName ?? "");
+      setPhotoUrl(user.photoUrl ?? "");
+    }
+  }, [user]);
   
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);

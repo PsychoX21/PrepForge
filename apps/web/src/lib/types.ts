@@ -120,6 +120,7 @@ export interface Category {
   icon: string | null;
   order: number;
   trackId: string;
+  track?: Track;
   resources?: Resource[];
   totalItems?: number;
   completedItems?: number;
@@ -134,6 +135,7 @@ export interface Resource {
   isMustDo: boolean;
   order: number;
   categoryId: string;
+  category?: Category;
   units?: Unit[];
   totalItems?: number;
   completedItems?: number;
@@ -145,6 +147,7 @@ export interface Unit {
   description: string | null;
   order: number;
   resourceId: string;
+  resource?: Resource;
   subUnits?: SubUnit[];
   totalItems?: number;
   completedItems?: number;
@@ -156,6 +159,7 @@ export interface SubUnit {
   description: string | null;
   order: number;
   unitId: string;
+  unit?: Unit;
   items?: Item[];
   totalItems?: number;
   completedItems?: number;
@@ -170,6 +174,7 @@ export interface Item {
   difficulty: Difficulty | null;
   order: number;
   subUnitId: string;
+  subUnit?: SubUnit;
   progress?: UserItemProgress;
 }
 

@@ -151,6 +151,10 @@ export class GroupsService {
   }
 
   async getLeaderboard(groupId: string, userId: string) {
+    if (!groupId || groupId === 'null' || groupId === 'undefined') {
+      return [];
+    }
+
     // Verify user is a member of the group
     const isMember = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId } },

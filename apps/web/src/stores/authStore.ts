@@ -44,5 +44,5 @@ export const useAuthStore = create<AuthState>((set) => ({
   setUser: (user) => set({ user }),
   setInitialized: (isInitialized) => set({ isInitialized }),
   setLoading: (isLoading) => set({ isLoading }),
-  reset: () => set(initialState),
+  reset: () => set({ firebaseUser: null, user: null, isInitialized: true, isLoading: false }),
 }));

@@ -198,7 +198,7 @@ export default function GroupsPage() {
                     <CardContent>
                       <div className="flex items-center gap-4 text-sm text-text-secondary mb-4">
                         <span className="flex items-center gap-1">
-                          <Users className="w-3.5 h-3.5" /> {group.memberCount ?? (group.members ?? []).length} members
+                          <Users className="w-3.5 h-3.5" /> {group._count?.members ?? (group.members ?? []).length} members
                         </span>
                         <span>·</span>
                         <span>{group._count?.tracks ?? 0} tracks</span>

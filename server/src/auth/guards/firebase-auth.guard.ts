@@ -63,6 +63,44 @@ export class FirebaseAuthGuard implements CanActivate {
             },
           });
           this.logger.log(`New user created: ${user.email}`);
+
+          // Automatically enroll in default group
+          let defaultGroup = await this.prisma.group.findFirst({
+            where: { isDefault: true },
+          });
+          if (!defaultGroup) {
+            let systemUser = await this.prisma.user.findFirst({
+              where: { email: 'system@prepforge.app' },
+            });
+            if (!systemUser) {
+              systemUser = await this.prisma.user.create({
+                data: {
+                  firebaseUid: 'system_admin_uid',
+                  email: 'system@prepforge.app',
+                  displayName: 'System Admin',
+                },
+              });
+            }
+            defaultGroup = await this.prisma.group.create({
+              data: {
+                name: 'PrepForge Default',
+                description: 'Default group with all curated content',
+                inviteCode: 'DEFAULT_GROUP',
+                isDefault: true,
+                createdById: systemUser.id,
+              },
+            });
+          }
+          if (defaultGroup) {
+            await this.prisma.groupMember.create({
+              data: {
+                userId: user.id,
+                groupId: defaultGroup.id,
+                role: 'MEMBER',
+              },
+            });
+            this.logger.log(`Automatically enrolled ${user.email} in default group ${defaultGroup.name}`);
+          }
         } catch (createError) {
           // Fallback if another request concurrently created the user
           user = await this.prisma.user.findUnique({

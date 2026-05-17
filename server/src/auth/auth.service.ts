@@ -54,6 +54,44 @@ export class AuthService {
             photoUrl: decoded.picture || null,
           },
         });
+
+        // Automatically enroll in default group
+        let defaultGroup = await this.prisma.group.findFirst({
+          where: { isDefault: true },
+        });
+        if (!defaultGroup) {
+          let systemUser = await this.prisma.user.findFirst({
+            where: { email: 'system@prepforge.app' },
+          });
+          if (!systemUser) {
+            systemUser = await this.prisma.user.create({
+              data: {
+                firebaseUid: 'system_admin_uid',
+                email: 'system@prepforge.app',
+                displayName: 'System Admin',
+              },
+            });
+          }
+          defaultGroup = await this.prisma.group.create({
+            data: {
+              name: 'PrepForge Default',
+              description: 'Default group with all curated content',
+              inviteCode: 'DEFAULT_GROUP',
+              isDefault: true,
+              createdById: systemUser.id,
+            },
+          });
+        }
+        if (defaultGroup) {
+          await this.prisma.groupMember.create({
+            data: {
+              userId: user.id,
+              groupId: defaultGroup.id,
+              role: 'MEMBER',
+            },
+          });
+          this.logger.log(`Automatically enrolled ${user.email} in default group ${defaultGroup.name}`);
+        }
       }
 
       // Update login streak and award daily XP

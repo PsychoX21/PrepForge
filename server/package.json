@@ -8,7 +8,7 @@
     "start": "nest start",
     "start:dev": "rimraf tsconfig.tsbuildinfo && nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "prestart:prod": "npx prisma migrate deploy && npm run db:seed",
+    "prestart:prod": "npx prisma migrate deploy && npm run prisma:seed",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,test}/**/*.ts\"",
     "prisma:generate": "prisma generate",

@@ -8,7 +8,17 @@ export class UsersService {
   async getProfile(userId: string) {
     return this.prisma.user.findUnique({
       where: { id: userId },
-      include: {
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        photoUrl: true,
+        xp: true,
+        level: true,
+        streak: true,
+        longestStreak: true,
+        lastActiveDate: true,
+        createdAt: true,
         memberships: {
           include: { group: { select: { id: true, name: true } } },
         },

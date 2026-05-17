@@ -29,7 +29,7 @@ export function useAuth() {
 
   // Listen to Firebase auth state changes
   useEffect(() => {
-    const isDemo = typeof window !== "undefined" && localStorage.getItem("prepforge_demo_mode") === "true";
+    const isDemo = typeof window !== "undefined" && sessionStorage.getItem("prepforge_demo_mode") === "true";
     if (isDemo) {
       const demoUser: User = {
         id: "demo-user-id",
@@ -109,7 +109,7 @@ export function useAuth() {
       };
       
       if (typeof window !== "undefined") {
-        localStorage.setItem("prepforge_demo_mode", "true");
+        sessionStorage.setItem("prepforge_demo_mode", "true");
       }
 
       const mockFbUser = {
@@ -133,7 +133,7 @@ export function useAuth() {
     setLoading(true);
     try {
       if (typeof window !== "undefined") {
-        localStorage.removeItem("prepforge_demo_mode");
+        sessionStorage.removeItem("prepforge_demo_mode");
       }
       await signOut();
       reset();

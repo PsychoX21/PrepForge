@@ -18,7 +18,7 @@ export interface UserStats {
   completedToday: number;
   totalCompleted: number;
   totalItems: number;
-  lastActive: string;
+  lastActiveDate: string;
 }
 
 export interface HeatmapEntry {
@@ -43,6 +43,8 @@ function useFetch<T>(endpoint: string | null, deps: unknown[] = []) {
   const { firebaseUser } = useAuthStore();
   const [tick, setTick] = useState(0);
 
+  const serializedDeps = JSON.stringify(deps);
+
   useEffect(() => {
     if (!endpoint || !firebaseUser) return;
     let cancelled = false;
@@ -65,9 +67,7 @@ function useFetch<T>(endpoint: string | null, deps: unknown[] = []) {
     return () => {
       cancelled = true;
     };
-    // deps are spread intentionally; endpoint & firebaseUser cover the main cases
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [endpoint, firebaseUser, tick, ...deps]);
+  }, [endpoint, firebaseUser, tick, serializedDeps]);
 
   const refetch = useCallback(() => setTick((t) => t + 1), []);
   return { data, isLoading, error, refetch };

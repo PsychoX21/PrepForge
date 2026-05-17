@@ -57,18 +57,18 @@ export class ProgressService {
         },
       });
 
-      // Award XP if item is transitionally marked done
-      if (data.status === 'DONE' && !wasAlreadyDone) {
-        await this.gamification.awardXP(userId, ['MARK_ITEM_DONE']);
-      }
-
-      return updated;
+      return { updated, wasAlreadyDone };
     });
+
+    // Award XP if item is transitionally marked done
+    if (data.status === 'DONE' && !progress.wasAlreadyDone) {
+      await this.gamification.awardXP(userId, ['MARK_ITEM_DONE']);
+    }
 
     // Invalidate cached track trees and summary stats
     await this.redis.invalidateUserPatterns(userId);
 
-    return progress;
+    return progress.updated;
   }
 
   async getSummary(userId: string, groupId?: string) {

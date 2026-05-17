@@ -90,7 +90,7 @@ export function useSocket() {
         capturedSocket?.off(event, callback);
       };
     },
-    []
+    [isConnected]
   );
 
   return { socket: socketInstance, isConnected, emit, on };

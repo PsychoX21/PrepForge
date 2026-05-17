@@ -90,10 +90,6 @@ export class TracksService {
   }
 
   async getFullTree(trackId: string, userId: string) {
-    const cacheKey = `track:${trackId}:user:${userId}:tree`;
-    const cached = await this.redis.get<any>(cacheKey);
-    if (cached) return cached;
-
     const trackHeader = await this.prisma.track.findUnique({
       where: { id: trackId },
       select: { id: true, groupId: true },
@@ -108,28 +104,28 @@ export class TracksService {
     });
     if (!isMember) throw new ForbiddenException('Access denied');
 
-    const fullTrack = await this.prisma.track.findUnique({
-      where: { id: trackId },
-      include: {
-        categories: {
-          orderBy: { order: 'asc' },
-          include: {
-            resources: {
-              orderBy: { order: 'asc' },
-              include: {
-                units: {
-                  orderBy: { order: 'asc' },
-                  include: {
-                    subUnits: {
-                      orderBy: { order: 'asc' },
-                      include: {
-                        items: {
-                          orderBy: { order: 'asc' },
-                          include: {
-                            progress: {
-                              where: { userId },
-                              take: 1,
-                            },
+    // 1. Get or cache the static track tree (shared across all users in group)
+    const staticCacheKey = `track:${trackId}:static`;
+    let staticTree = await this.redis.get<any>(staticCacheKey);
+
+    if (!staticTree) {
+      staticTree = await this.prisma.track.findUnique({
+        where: { id: trackId },
+        include: {
+          categories: {
+            orderBy: { order: 'asc' },
+            include: {
+              resources: {
+                orderBy: { order: 'asc' },
+                include: {
+                  units: {
+                    orderBy: { order: 'asc' },
+                    include: {
+                      subUnits: {
+                        orderBy: { order: 'asc' },
+                        include: {
+                          items: {
+                            orderBy: { order: 'asc' },
                           },
                         },
                       },
@@ -140,36 +136,71 @@ export class TracksService {
             },
           },
         },
-      },
-    });
+      });
 
-    if (!fullTrack) throw new NotFoundException('Track not found');
+      if (!staticTree) throw new NotFoundException('Track not found');
+      await this.redis.set(staticCacheKey, staticTree, 86400); // 24-hour cache for static content
+    }
 
-    // Flatten item.progress array to single object
-    const mappedCategories = (fullTrack.categories ?? []).map((cat) => ({
+    // 2. Get or cache the user-specific progress overlay
+    const progressCacheKey = `track:${trackId}:user:${userId}:progress`;
+    let userProgressList = await this.redis.get<any[]>(progressCacheKey);
+
+    if (!userProgressList) {
+      userProgressList = await this.prisma.userItemProgress.findMany({
+        where: {
+          userId,
+          item: {
+            subUnit: {
+              unit: {
+                resource: {
+                  category: {
+                    trackId,
+                  },
+                },
+              },
+            },
+          },
+        },
+        select: {
+          itemId: true,
+          status: true,
+          completion: true,
+          isStarred: true,
+          isWatchLater: true,
+          completedAt: true,
+        },
+      });
+      await this.redis.set(progressCacheKey, userProgressList, 300); // 5-minute cache for user progress
+    }
+
+    const progressMap = new Map<string, any>();
+    for (const p of userProgressList) {
+      progressMap.set(p.itemId, p);
+    }
+
+    // 3. Overlay the user's progress onto the static tree
+    const mappedCategories = (staticTree.categories ?? []).map((cat: any) => ({
       ...cat,
-      resources: (cat.resources ?? []).map((res) => ({
+      resources: (cat.resources ?? []).map((res: any) => ({
         ...res,
-        units: (res.units ?? []).map((unit) => ({
+        units: (res.units ?? []).map((unit: any) => ({
           ...unit,
-          subUnits: (unit.subUnits ?? []).map((sub) => ({
+          subUnits: (unit.subUnits ?? []).map((sub: any) => ({
             ...sub,
-            items: (sub.items ?? []).map((item) => ({
+            items: (sub.items ?? []).map((item: any) => ({
               ...item,
-              progress: item.progress?.[0] ?? null,
+              progress: progressMap.get(item.id) || null,
             })),
           })),
         })),
       })),
     }));
 
-    const result = {
-      ...fullTrack,
+    return {
+      ...staticTree,
       categories: mappedCategories,
     };
-
-    await this.redis.set(cacheKey, result, 3600);
-    return result;
   }
 
   async getTrackSummary(trackId: string, userId: string) {

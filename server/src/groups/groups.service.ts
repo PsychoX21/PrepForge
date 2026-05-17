@@ -174,17 +174,21 @@ export class GroupsService {
           },
         },
       },
+      orderBy: {
+        user: {
+          xp: 'desc',
+        },
+      },
+      take: 100,
     });
 
-    // Sort by XP descending
     const sorted = members
-      .map((m) => m.user)
-      .sort((a, b) => b.xp - a.xp)
-      .map((user, index) => ({
+      .filter((m) => m.user !== null)
+      .map((m, index) => ({
         rank: index + 1,
-        user,
-        xp: user.xp,
-        streak: user.streak,
+        user: m.user,
+        xp: m.user.xp,
+        streak: m.user.streak,
       }));
 
     return sorted;

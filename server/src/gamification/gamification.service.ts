@@ -80,9 +80,10 @@ export class GamificationService {
 
   /**
    * Process daily login — update streak and award login XP.
+   * Supports an optional localDate (YYYY-MM-DD) to account for client-side timezone day boundaries.
    */
-  async processLogin(userId: string) {
-    const today = new Date().toISOString().split('T')[0];
+  async processLogin(userId: string, localDate?: string) {
+    const today = localDate || new Date().toISOString().split('T')[0];
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -91,32 +92,42 @@ export class GamificationService {
 
     if (!user) return;
 
+    if (user.lastActiveDate === today) {
+      return { streak: user.streak };
+    }
+
     let newStreak = user.streak;
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-    if (user.lastActiveDate !== today) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
+    if (user.lastActiveDate === yesterdayStr) {
+      // Continuing streak
+      newStreak = user.streak + 1;
+    } else {
+      // Streak broken (or first active day)
+      newStreak = 1;
+    }
 
-      if (user.lastActiveDate === yesterdayStr) {
-        // Continuing streak
-        newStreak = user.streak + 1;
-      } else if (user.lastActiveDate !== today) {
-        // Streak broken
-        newStreak = 1;
-      }
+    const longestStreak = Math.max(newStreak, user.longestStreak);
 
-      const longestStreak = Math.max(newStreak, user.longestStreak);
+    // Use updateMany with check on lastActiveDate to make the update idempotent (thread-safe login)
+    const updated = await this.prisma.user.updateMany({
+      where: {
+        id: userId,
+        OR: [
+          { lastActiveDate: null },
+          { lastActiveDate: { not: today } },
+        ],
+      },
+      data: {
+        streak: newStreak,
+        longestStreak,
+        lastActiveDate: today,
+      },
+    });
 
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: {
-          streak: newStreak,
-          longestStreak,
-          lastActiveDate: today,
-        },
-      });
-
+    if (updated.count > 0) {
       const actionsToAward = ['DAILY_LOGIN'];
 
       // Check streak milestones

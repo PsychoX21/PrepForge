@@ -28,6 +28,27 @@ export class ApiError extends Error {
 
 // ─── Core Fetch ─────────────────────────────────────────────────────────────
 
+let cachedToken: { value: string; expiresAt: number } | null = null;
+
+async function getCachedToken(): Promise<string | null> {
+  // Reuse the token if it exists and has at least 5 minutes remaining before expiry
+  if (cachedToken && Date.now() < cachedToken.expiresAt - 300_000) {
+    return cachedToken.value;
+  }
+
+  const token = await getIdToken();
+  if (token) {
+    // Firebase ID tokens typically expire after 1 hour (3600 seconds)
+    cachedToken = {
+      value: token,
+      expiresAt: Date.now() + 3600 * 1000,
+    };
+  } else {
+    cachedToken = null;
+  }
+  return token;
+}
+
 async function apiFetch<T>(
   endpoint: string,
   options: RequestOptions = {}
@@ -44,8 +65,8 @@ async function apiFetch<T>(
     });
   }
 
-  // Get auth token
-  const token = await getIdToken();
+  // Get cached auth token
+  const token = await getCachedToken();
 
   // Build headers
   const headers: Record<string, string> = {

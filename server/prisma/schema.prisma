@@ -128,6 +128,7 @@ model GroupMember {
   joinedAt DateTime @default(now()) @map("joined_at")
 
   @@unique([userId, groupId])
+  @@index([groupId])
   @@map("group_members")
 }
 
@@ -150,6 +151,7 @@ model Track {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@index([groupId])
   @@map("tracks")
 }
 
@@ -166,6 +168,7 @@ model Category {
 
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([trackId])
   @@map("categories")
 }
 
@@ -184,6 +187,7 @@ model Resource {
 
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([categoryId])
   @@map("resources")
 }
 
@@ -199,6 +203,7 @@ model Unit {
 
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([resourceId])
   @@map("units")
 }
 
@@ -214,6 +219,7 @@ model SubUnit {
 
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([unitId])
   @@map("sub_units")
 }
 
@@ -237,6 +243,7 @@ model Item {
 
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([subUnitId])
   @@map("items")
 }
 

@@ -9,6 +9,7 @@ import { UsersService } from './users.service';
 import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '@prisma/client';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('users')
 @UseGuards(FirebaseAuthGuard)
@@ -25,7 +26,7 @@ export class UsersController {
   @Patch('me')
   updateProfile(
     @CurrentUser() user: User,
-    @Body() data: { displayName?: string; photoUrl?: string },
+    @Body() data: UpdateProfileDto,
   ) {
     return this.usersService.updateProfile(user.id, data);
   }

@@ -146,4 +146,27 @@ export class UsersService {
       },
     };
   }
+
+  async deleteAccount(userId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Find all groups owned by this user
+      const ownedGroups = await tx.group.findMany({
+        where: { createdById: userId },
+        select: { id: true },
+      });
+
+      // 2. Delete all owned groups (this will cascade delete tracks, members, etc.)
+      if (ownedGroups.length > 0) {
+        const groupIds = ownedGroups.map((g) => g.id);
+        await tx.group.deleteMany({
+          where: { id: { in: groupIds } },
+        });
+      }
+
+      // 3. Delete user (which cascades to memberships, progress, playlists, logs, notes)
+      return tx.user.delete({
+        where: { id: userId },
+      });
+    });
+  }
 }

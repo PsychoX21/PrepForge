@@ -39,9 +39,13 @@ async function bootstrap() {
         return;
       }
       const sanitized = origin.replace(/\/$/, '');
-      const isAllowed = allowedOrigins.some((o) =>
-        sanitized === o.replace(/\/$/, '')
-      );
+      const isAllowed = allowedOrigins.some((o) => {
+        const allowedSanitized = o.replace(/\/$/, '');
+        if (sanitized === allowedSanitized) return true;
+        // Match standard vercel deployments and preview links for the web app
+        if (sanitized.match(/^https:\/\/prepforge-web(-[a-z0-9-]+)?\.vercel\.app$/)) return true;
+        return false;
+      });
       if (isAllowed) {
         callback(null, true);
       } else {

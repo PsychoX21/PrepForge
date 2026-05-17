@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Search, Bell, Menu, Command } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
 import { Button } from "@/components/ui/button";
+import { useUserActivities } from "@/hooks/useProgress";
 
 interface TopbarProps {
   title?: string;
@@ -13,6 +14,7 @@ interface TopbarProps {
 export function Topbar({ title, subtitle }: TopbarProps) {
   const { setMobileMenuOpen, setSearchOpen } = useUIStore();
   const [showNotifications, setShowNotifications] = useState(false);
+  const { data: activityData } = useUserActivities();
 
   return (
     <header className="sticky top-0 z-30 h-16 bg-bg-primary/80 backdrop-blur-xl border-b border-border-default/50">
@@ -87,27 +89,43 @@ export function Topbar({ title, subtitle }: TopbarProps) {
                     <button onClick={() => setShowNotifications(false)} className="text-[10px] text-text-muted hover:text-text-primary">Dismiss all</button>
                   </div>
                   <div className="space-y-2.5 max-h-[250px] overflow-y-auto no-scrollbar">
-                    <div className="flex gap-2.5 items-start p-2 hover:bg-bg-elevated/40 rounded-xl transition-colors">
-                      <div className="w-6 h-6 rounded-lg bg-accent-blue/10 flex items-center justify-center text-xs flex-shrink-0 text-accent-blue">📚</div>
-                      <div className="space-y-0.5 min-w-0">
-                        <p className="text-[11px] font-semibold text-text-primary">New SWE Resources</p>
-                        <p className="text-[10px] text-text-muted">A mentor added "Optimal DSA Guide" to your track.</p>
+                    {activityData?.logs && activityData.logs.length > 0 ? (
+                      activityData.logs.slice(0, 5).map((log) => {
+                        const { label, emoji, bgColor, textColor } = {
+                          MARK_ITEM_DONE: { label: "Completed a Study Item", emoji: "📚", bgColor: "bg-accent-blue/10", textColor: "text-accent-blue" },
+                          MARK_SUBUNIT_DONE: { label: "Finished a Topic Subunit", emoji: "🎯", bgColor: "bg-accent-purple/10", textColor: "text-accent-purple" },
+                          MARK_UNIT_DONE: { label: "Mastered a Chapter Unit", emoji: "🏆", bgColor: "bg-yellow-400/10", textColor: "text-yellow-400" },
+                          MARK_RESOURCE_DONE: { label: "Completed a Whole Resource", emoji: "🚀", bgColor: "bg-accent-green/10", textColor: "text-accent-green" },
+                          ADD_COMMENT: { label: "Contributed to Discussion", emoji: "💬", bgColor: "bg-accent-green/10", textColor: "text-accent-green" },
+                          ADD_NOTE: { label: "Saved a Personal Study Note", emoji: "📝", bgColor: "bg-accent-purple/10", textColor: "text-accent-purple" },
+                          SHARE_PUBLIC_NOTE: { label: "Shared a Resource Note", emoji: "📝", bgColor: "bg-accent-purple/10", textColor: "text-accent-purple" },
+                          DAILY_LOGIN: { label: "Daily Check-in Streak Active", emoji: "🔥", bgColor: "bg-red-500/10", textColor: "text-red-400" },
+                          STREAK_BONUS_7: { label: "7-Day Consistent Prep Bonus", emoji: "👑", bgColor: "bg-yellow-400/10", textColor: "text-yellow-400" },
+                          STREAK_BONUS_30: { label: "30-Day Hardcore Prep Bonus", emoji: "👑", bgColor: "bg-yellow-400/10", textColor: "text-yellow-400" },
+                          STREAK_BONUS_100: { label: "100-Day Centurion Prep Bonus", emoji: "👑", bgColor: "bg-yellow-400/10", textColor: "text-yellow-400" },
+                        }[log.action] || { label: "Activity Completed", emoji: "✅", bgColor: "bg-accent-blue/10", textColor: "text-accent-blue" };
+
+                        return (
+                          <div key={log.id} className="flex gap-2.5 items-start p-2 hover:bg-bg-elevated/40 rounded-xl transition-colors">
+                            <div className={`w-6 h-6 rounded-lg ${bgColor} flex items-center justify-center text-xs flex-shrink-0 ${textColor}`}>
+                              {emoji}
+                            </div>
+                            <div className="space-y-0.5 min-w-0">
+                              <p className="text-[11px] font-semibold text-text-primary">{label}</p>
+                              <p className="text-[9px] text-text-muted">
+                                Awarded +{log.xpAwarded} XP • {new Date(log.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-8 text-center space-y-1.5">
+                        <div className="w-8 h-8 rounded-full bg-bg-elevated flex items-center justify-center text-text-muted text-xs">🔔</div>
+                        <p className="text-[11px] font-medium text-text-secondary">All caught up!</p>
+                        <p className="text-[9px] text-text-muted max-w-[200px]">No recent activity logs or notification updates to display.</p>
                       </div>
-                    </div>
-                    <div className="flex gap-2.5 items-start p-2 hover:bg-bg-elevated/40 rounded-xl transition-colors">
-                      <div className="w-6 h-6 rounded-lg bg-yellow-400/10 flex items-center justify-center text-xs flex-shrink-0 text-yellow-400">🔥</div>
-                      <div className="space-y-0.5 min-w-0">
-                        <p className="text-[11px] font-semibold text-text-primary">Keep It Going!</p>
-                        <p className="text-[10px] text-text-muted">Your study streak is active at 5 days. Keep crushing it!</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2.5 items-start p-2 hover:bg-bg-elevated/40 rounded-xl transition-colors">
-                      <div className="w-6 h-6 rounded-lg bg-accent-green/10 flex items-center justify-center text-xs flex-shrink-0 text-accent-green">💬</div>
-                      <div className="space-y-0.5 min-w-0">
-                        <p className="text-[11px] font-semibold text-text-primary">Discussion Active</p>
-                        <p className="text-[10px] text-text-muted">Someone responded to your comment on "Probability."</p>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </>

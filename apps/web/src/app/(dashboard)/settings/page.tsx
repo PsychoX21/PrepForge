@@ -6,7 +6,7 @@
  */
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { User, LogOut, Check, AlertCircle, Sparkles } from "lucide-react";
+import { User, LogOut, Check, AlertCircle, Sparkles, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,8 +24,27 @@ export default function SettingsPage() {
   const [photoUrl, setPhotoUrl] = useState(user?.photoUrl ?? "");
   
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleDeleteAccount = async () => {
+    const confirm1 = confirm("Are you sure you want to permanently delete your PrepForge account?\n\nThis will instantly delete all your progress, study tracks, activity logs, and comments. This action CANNOT be undone.");
+    if (!confirm1) return;
+
+    const confirm2 = confirm("DOUBLE VERIFICATION:\nAre you absolutely positive? You will lose all your gamification levels, daily streaks, and custom playlists forever.");
+    if (!confirm2) return;
+
+    setIsDeleting(true);
+    try {
+      await api.delete("/users/me");
+      await logout();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete account");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,9 +188,14 @@ export default function SettingsPage() {
             <CardDescription>Perform destructive or session management actions</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="danger" size="md" onClick={logout} className="w-full sm:w-auto">
-              <LogOut className="w-4 h-4" /> Sign Out from PrepForge
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button variant="secondary" size="md" onClick={logout} className="w-full sm:w-auto">
+                <LogOut className="w-4.5 h-4.5" /> Sign Out
+              </Button>
+              <Button variant="danger" size="md" onClick={handleDeleteAccount} isLoading={isDeleting} className="w-full sm:w-auto">
+                <Trash2 className="w-4.5 h-4.5" /> Delete My Account Permanently
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </motion.div>

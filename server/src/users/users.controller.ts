@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Patch,
+  Delete,
   Body,
   UseGuards,
 } from '@nestjs/common';
@@ -47,5 +48,11 @@ export class UsersController {
   @Get('me/activities')
   getActivities(@CurrentUser() user: User) {
     return this.usersService.getActivities(user.id);
+  }
+
+  /** DELETE /api/users/me — Permanently delete user account */
+  @Delete('me')
+  deleteAccount(@CurrentUser() user: User) {
+    return this.usersService.deleteAccount(user.id);
   }
 }

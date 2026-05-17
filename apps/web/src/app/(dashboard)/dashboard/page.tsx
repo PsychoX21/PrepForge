@@ -221,6 +221,8 @@ export default function DashboardPage() {
                 ))
               : (tracks ?? []).map((track) => {
                   const meta = TRACK_META[track.name] ?? { icon: "📚", color: "#58a6ff" };
+                  const trackIcon = track.icon || meta.icon;
+                  const trackColor = track.color || meta.color;
                   const total = track.totalItems ?? 0;
                   const done = track.completedItems ?? 0;
                   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -230,7 +232,7 @@ export default function DashboardPage() {
                         <CardContent className="flex flex-col gap-3">
                       {/* Icon + Name */}
                           <div className="flex items-center gap-3">
-                            <span className="text-2xl">{meta.icon}</span>
+                            <span className="text-2xl">{trackIcon}</span>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-text-primary truncate">
                                 {track.name}
@@ -249,7 +251,7 @@ export default function DashboardPage() {
                               </span>
                               <span
                                 className="font-medium"
-                                style={{ color: meta.color }}
+                                style={{ color: trackColor }}
                               >
                                 {pct}%
                               </span>
@@ -259,7 +261,7 @@ export default function DashboardPage() {
                                 className="h-full rounded-full transition-all duration-700"
                                 style={{
                                   width: `${pct}%`,
-                                  backgroundColor: meta.color,
+                                  backgroundColor: trackColor,
                                 }}
                               />
                             </div>

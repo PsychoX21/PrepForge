@@ -18,7 +18,11 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   // Security
-  app.use(helmet());
+  app.use(
+    helmet({
+      crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+    }),
+  );
   app.use(compression());
 
   // CORS

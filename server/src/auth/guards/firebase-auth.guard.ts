@@ -40,15 +40,25 @@ export class FirebaseAuthGuard implements CanActivate {
       });
 
       if (!user) {
-        user = await this.prisma.user.create({
-          data: {
-            firebaseUid: decoded.uid,
-            email: decoded.email || '',
-            displayName: decoded.name || decoded.email?.split('@')[0] || 'User',
-            photoUrl: decoded.picture || null,
-          },
-        });
-        this.logger.log(`New user created: ${user.email}`);
+        try {
+          user = await this.prisma.user.create({
+            data: {
+              firebaseUid: decoded.uid,
+              email: decoded.email || '',
+              displayName: decoded.name || decoded.email?.split('@')[0] || 'User',
+              photoUrl: decoded.picture || null,
+            },
+          });
+          this.logger.log(`New user created: ${user.email}`);
+        } catch (createError) {
+          // Fallback if another request concurrently created the user
+          user = await this.prisma.user.findUnique({
+            where: { firebaseUid: decoded.uid },
+          });
+          if (!user) {
+            throw createError;
+          }
+        }
       }
 
       // Attach user to request

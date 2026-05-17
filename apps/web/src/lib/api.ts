@@ -30,7 +30,13 @@ export class ApiError extends Error {
 
 function getTokenExpiry(token: string): number {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const payloadPart = token.split('.')[1];
+    if (!payloadPart) return Date.now() + 3600 * 1000;
+    const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = typeof window !== 'undefined'
+      ? atob(base64)
+      : Buffer.from(base64, 'base64').toString('binary');
+    const payload = JSON.parse(jsonPayload);
     return (payload.exp ?? 0) * 1000; // convert to ms
   } catch {
     return Date.now() + 3600 * 1000;

@@ -498,6 +498,16 @@ export default function CategoryDetailPage({ params }: PageProps) {
 
       {/* Resources & Items list */}
       <div className="space-y-8">
+        {isEditMode && (
+          <div className="flex justify-end p-2 bg-bg-elevated/5 border border-dashed border-border-default/40 rounded-xl mb-2">
+            <button
+              onClick={() => openModal({ type: "resource", action: "create", parentId: localCategory.id })}
+              className="text-xs text-accent-blue hover:underline flex items-center gap-1.5 font-semibold py-1.5 px-3 rounded-lg hover:bg-bg-elevated transition-colors"
+            >
+              <Plus className="w-4 h-4" /> Add New Resource Section
+            </button>
+          </div>
+        )}
         {localCategory.resources?.map((res: any) => (
           <motion.div key={res.id} variants={fadeUp} className="space-y-4">
             <div className="flex items-start justify-between border-b border-border-default/20 pb-3">

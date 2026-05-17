@@ -5,6 +5,7 @@ import {
   Param,
   Body,
   UseGuards,
+  Delete,
 } from '@nestjs/common';
 import { GroupsService } from './groups.service';
 import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
@@ -63,5 +64,11 @@ export class GroupsController {
   @Get(':id/leaderboard')
   getLeaderboard(@Param('id') id: string, @CurrentUser() user: User) {
     return this.groupsService.getLeaderboard(id, user.id);
+  }
+
+  /** DELETE /api/groups/:id — Delete a group (owner only) */
+  @Delete(':id')
+  remove(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.groupsService.deleteGroup(id, user.id);
   }
 }

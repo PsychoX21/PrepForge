@@ -48,7 +48,7 @@ export function useSocket() {
       const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:4001";
       socketInstance = io(wsUrl, {
         auth: { token },
-        transports: ["websocket"],
+        transports: ["polling", "websocket"],
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionAttempts: 10,

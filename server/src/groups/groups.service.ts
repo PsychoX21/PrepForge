@@ -189,4 +189,26 @@ export class GroupsService {
 
     return sorted;
   }
+
+  async deleteGroup(groupId: string, userId: string) {
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+      select: { createdById: true },
+    });
+
+    if (!group) {
+      throw new NotFoundException('Group not found');
+    }
+
+    if (group.createdById !== userId) {
+      throw new ForbiddenException('Only the group owner can delete this group');
+    }
+
+    // Perform delete. Prisma cascades clean up all memberships, tracks, chat, etc.
+    await this.prisma.group.delete({
+      where: { id: groupId },
+    });
+
+    return { success: true, message: 'Group deleted successfully' };
+  }
 }

@@ -7,7 +7,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
-import type { Group, LeaderboardEntry, ApiResponse } from "@/lib/types";
+import type { Group, LeaderboardEntry, ApiResponse, User } from "@/lib/types";
 
 // ─── useGroups ────────────────────────────────────────────────────────────────
 
@@ -136,7 +136,18 @@ export function useCreateGroup() {
       setError(null);
       try {
         const res = await api.post<ApiResponse<Group>>("/groups", dto);
-        return (res as ApiResponse<Group>).data ?? (res as unknown as Group);
+        const group = (res as ApiResponse<Group>).data ?? (res as unknown as Group);
+        
+        // Refresh user profile so memberships update instantly!
+        try {
+          const userRes = await api.get<ApiResponse<User>>("/users/me");
+          const freshUser = (userRes as ApiResponse<User>).data ?? (userRes as unknown as User);
+          useAuthStore.getState().setUser(freshUser);
+        } catch (err) {
+          console.error("Failed to refresh user profile:", err);
+        }
+        
+        return group;
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : "Failed to create group");
         return null;
@@ -162,7 +173,18 @@ export function useJoinGroup() {
     setError(null);
     try {
       const res = await api.post<ApiResponse<Group>>(`/groups/${inviteCode}/join`, {});
-      return (res as ApiResponse<Group>).data ?? (res as unknown as Group);
+      const group = (res as ApiResponse<Group>).data ?? (res as unknown as Group);
+      
+      // Refresh user profile so memberships update instantly!
+      try {
+        const userRes = await api.get<ApiResponse<User>>("/users/me");
+        const freshUser = (userRes as ApiResponse<User>).data ?? (userRes as unknown as User);
+        useAuthStore.getState().setUser(freshUser);
+      } catch (err) {
+        console.error("Failed to refresh user profile:", err);
+      }
+      
+      return group;
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Invalid invite code");
       return null;
@@ -172,4 +194,38 @@ export function useJoinGroup() {
   }, []);
 
   return { join, isLoading, error };
+}
+
+// ─── useDeleteGroup ───────────────────────────────────────────────────────────
+
+/** Mutation: delete a group (owner only). */
+export function useDeleteGroup() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const remove = useCallback(async (groupId: string): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await api.delete(`/groups/${groupId}`);
+      
+      // Refresh user profile so memberships update instantly!
+      try {
+        const userRes = await api.get<ApiResponse<User>>("/users/me");
+        const freshUser = (userRes as ApiResponse<User>).data ?? (userRes as unknown as User);
+        useAuthStore.getState().setUser(freshUser);
+      } catch (err) {
+        console.error("Failed to refresh user profile:", err);
+      }
+      
+      return true;
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to delete group");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return { remove, isLoading, error };
 }

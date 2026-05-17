@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Search, X, BookOpen, Trophy, Settings, Users, ArrowRight } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
+import { useTracks } from "@/hooks/useTracks";
+import { useAuthStore } from "@/stores/authStore";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -11,13 +13,35 @@ export function SearchModal() {
   const [query, setQuery] = useState("");
   const router = useRouter();
 
-  const items = [
+  const { user } = useAuthStore();
+  const groupId = user?.memberships?.[0]?.groupId ?? null;
+  const { data: tracks } = useTracks(groupId);
+
+  const navigationItems = [
     { name: "Dashboard & Home", category: "Navigation", path: "/dashboard", icon: <BookOpen className="w-4 h-4" /> },
     { name: "Global Leaderboard", category: "Navigation", path: "/leaderboard", icon: <Trophy className="w-4 h-4 text-yellow-400" /> },
     { name: "Study Tracks & Resources", category: "Navigation", path: "/tracks", icon: <BookOpen className="w-4 h-4 text-accent-blue" /> },
     { name: "Groups & Study Rooms", category: "Navigation", path: "/groups", icon: <Users className="w-4 h-4 text-accent-purple" /> },
     { name: "Settings & Profile", category: "Navigation", path: "/settings", icon: <Settings className="w-4 h-4" /> },
   ];
+
+  const trackItems = (tracks ?? []).map((t) => ({
+    name: t.name,
+    category: "Study Track",
+    path: "/tracks",
+    icon: <span className="text-sm">{t.icon || "📚"}</span>
+  }));
+
+  const categoryItems = (tracks ?? []).flatMap((t) =>
+    (t.categories ?? []).map((c) => ({
+      name: c.name,
+      category: `Category in ${t.name}`,
+      path: `/tracks/${t.id}/${c.id}`,
+      icon: <span className="text-sm">{c.icon || "📚"}</span>
+    }))
+  );
+
+  const items = [...navigationItems, ...trackItems, ...categoryItems];
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

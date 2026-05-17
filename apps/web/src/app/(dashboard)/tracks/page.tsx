@@ -11,7 +11,7 @@ import { ChevronRight, Star, FolderTree, AlertCircle, Plus, Edit2, Trash2 } from
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useTracks, useCreateTrack, useUpdateTrack, useDeleteTrack } from "@/hooks/useTracks";
+import { useTracks, useCreateTrack, useUpdateTrack, useDeleteTrack, useCreateCategory } from "@/hooks/useTracks";
 import { useAuthStore } from "@/stores/authStore";
 
 const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
@@ -29,6 +29,19 @@ export default function TracksPage() {
   const { create, isLoading: isCreating } = useCreateTrack();
   const { update, isLoading: isUpdating } = useUpdateTrack();
   const { remove, isLoading: isDeleting } = useDeleteTrack();
+  const { create: createCategory } = useCreateCategory();
+
+  const handleAddCategory = async (trackId: string) => {
+    const name = prompt("Enter category name (e.g., Data Structures, System Design):");
+    if (!name || !name.trim()) return;
+    const icon = prompt("Enter category emoji icon (optional, e.g. 💻, 🧠, 📚):", "📚");
+    try {
+      await createCategory(trackId, { name: name.trim(), icon: icon?.trim() || "📚" });
+      refetch();
+    } catch (err) {
+      console.error("Failed to create category:", err);
+    }
+  };
 
   const [showForm, setShowForm] = useState(false);
   const [editingTrack, setEditingTrack] = useState<any>(null);
@@ -293,6 +306,16 @@ export default function TracksPage() {
                   );
                 })}
               </CardContent>
+              {groupId && (
+                <div className="px-6 py-2 border-t border-border-default/10 bg-bg-elevated/5 flex justify-end">
+                  <button
+                    onClick={() => handleAddCategory(track.id)}
+                    className="text-xs text-accent-blue hover:underline flex items-center gap-1 font-semibold py-1 px-2 rounded hover:bg-bg-elevated/30 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Category
+                  </button>
+                </div>
+              )}
             </Card>
           </motion.div>
         );

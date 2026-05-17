@@ -5,11 +5,11 @@
  */
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Users, Plus, Copy, UserPlus, Settings, ExternalLink, AlertCircle, Check } from "lucide-react";
+import { Users, Plus, Copy, UserPlus, Settings, ExternalLink, AlertCircle, Check, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useGroups, useCreateGroup, useJoinGroup } from "@/hooks/useGroups";
+import { useGroups, useCreateGroup, useJoinGroup, useDeleteGroup } from "@/hooks/useGroups";
 import Link from "next/link";
 
 const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
@@ -23,6 +23,7 @@ export default function GroupsPage() {
   const { data: groups, isLoading, error, refetch } = useGroups();
   const { create, isLoading: creating } = useCreateGroup();
   const { join, isLoading: joining } = useJoinGroup();
+  const { remove: deleteGroup, isLoading: deleting } = useDeleteGroup();
 
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
@@ -31,6 +32,16 @@ export default function GroupsPage() {
   const [useDefault, setUseDefault] = useState(true);
   const [inviteCode, setInviteCode] = useState("");
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  const handleDeleteGroup = async (groupId: string, groupName: string) => {
+    if (!confirm(`WARNING: Are you sure you want to permanently delete the group "${groupName}"?\n\nThis will instantly delete all custom tracks, categories, items, and study progress logs for all members of this group! This action is absolute and CANNOT be undone.`)) {
+      return;
+    }
+    const ok = await deleteGroup(groupId);
+    if (ok) {
+      refetch();
+    }
+  };
 
   const handleCreate = async () => {
     if (!createName.trim()) return;
@@ -187,8 +198,15 @@ export default function GroupsPage() {
                           </Link>
                         </Button>
                         {role === "OWNER" && (
-                          <Button variant="ghost" size="icon-sm">
-                            <Settings className="w-4 h-4" />
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleDeleteGroup(group.id, group.name)}
+                            disabled={deleting}
+                            className="hover:text-red-400 text-text-muted transition-colors"
+                            title="Delete Group"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         )}
                       </div>

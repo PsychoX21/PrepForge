@@ -3,6 +3,7 @@ import { ProgressService } from './progress.service';
 import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '@prisma/client';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('progress')
 @UseGuards(FirebaseAuthGuard)
@@ -11,6 +12,7 @@ export class ProgressController {
 
   /** PATCH /api/progress/:itemId — Update item progress */
   @Patch(':itemId')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   update(
     @Param('itemId') itemId: string,
     @CurrentUser() user: User,

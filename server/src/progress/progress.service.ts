@@ -22,44 +22,48 @@ export class ProgressService {
       completion?: number;
     },
   ) {
-    // Check existing progress status to prevent XP double-award
-    const existing = await this.prisma.userItemProgress.findUnique({
-      where: {
-        userId_itemId: { userId, itemId },
-      },
-      select: { status: true },
-    });
-    const wasAlreadyDone = existing?.status === 'DONE';
+    const progress = await this.prisma.$transaction(async (tx) => {
+      // Check existing progress status to prevent XP double-award
+      const existing = await tx.userItemProgress.findUnique({
+        where: {
+          userId_itemId: { userId, itemId },
+        },
+        select: { status: true },
+      });
+      const wasAlreadyDone = existing?.status === 'DONE';
 
-    const progress = await this.prisma.userItemProgress.upsert({
-      where: {
-        userId_itemId: { userId, itemId },
-      },
-      update: {
-        ...data,
-        completedAt:
-          data.status === 'DONE'
-            ? new Date()
-            : data.status !== undefined
-            ? null
-            : undefined,
-      },
-      create: {
-        userId,
-        itemId,
-        status: data.status || 'NOT_STARTED',
-        isStarred: data.isStarred || false,
-        isWatchLater: data.isWatchLater || false,
-        completion: data.completion || 0,
-        completedAt:
-          data.status === 'DONE' ? new Date() : null,
-      },
-    });
+      const updated = await tx.userItemProgress.upsert({
+        where: {
+          userId_itemId: { userId, itemId },
+        },
+        update: {
+          ...data,
+          completedAt:
+            data.status === 'DONE'
+              ? new Date()
+              : data.status !== undefined
+              ? null
+              : undefined,
+        },
+        create: {
+          userId,
+          itemId,
+          status: data.status || 'NOT_STARTED',
+          isStarred: data.isStarred || false,
+          isWatchLater: data.isWatchLater || false,
+          completion: data.completion || 0,
+          completedAt:
+            data.status === 'DONE' ? new Date() : null,
+        },
+      });
 
-    // Award XP if item is transitionally marked done
-    if (data.status === 'DONE' && !wasAlreadyDone) {
-      await this.gamification.awardXP(userId, ['MARK_ITEM_DONE']);
-    }
+      // Award XP if item is transitionally marked done
+      if (data.status === 'DONE' && !wasAlreadyDone) {
+        await this.gamification.awardXP(userId, ['MARK_ITEM_DONE']);
+      }
+
+      return updated;
+    });
 
     // Invalidate cached track trees and summary stats
     await this.redis.invalidateUserPatterns(userId);

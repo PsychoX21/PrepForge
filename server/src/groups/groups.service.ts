@@ -191,19 +191,15 @@ export class GroupsService {
   }
 
   async updateGroup(groupId: string, userId: string, dto: { name?: string; description?: string }) {
-    const group = await this.prisma.group.findUnique({
-      where: { id: groupId },
-    });
-
-    if (!group) {
-      throw new NotFoundException('Group not found');
-    }
-
     const member = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId } },
     });
 
-    if (!member || !['OWNER', 'ADMIN'].includes(member.role)) {
+    if (!member) {
+      throw new NotFoundException('Group not found or you are not a member');
+    }
+
+    if (!['OWNER', 'ADMIN'].includes(member.role)) {
       throw new ForbiddenException('Only admins or owners can modify settings');
     }
 
@@ -214,19 +210,15 @@ export class GroupsService {
   }
 
   async deleteGroup(groupId: string, userId: string) {
-    const group = await this.prisma.group.findUnique({
-      where: { id: groupId },
-    });
-
-    if (!group) {
-      throw new NotFoundException('Group not found');
-    }
-
     const member = await this.prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId } },
     });
 
-    if (!member || !['OWNER', 'ADMIN'].includes(member.role)) {
+    if (!member) {
+      throw new NotFoundException('Group not found or you are not a member');
+    }
+
+    if (!['OWNER', 'ADMIN'].includes(member.role)) {
       throw new ForbiddenException('Only admins or owners can delete this group');
     }
 

@@ -94,6 +94,20 @@ export class TracksService {
     const cached = await this.redis.get<any>(cacheKey);
     if (cached) return cached;
 
+    const trackHeader = await this.prisma.track.findUnique({
+      where: { id: trackId },
+      select: { id: true, groupId: true },
+    });
+
+    if (!trackHeader) throw new NotFoundException('Track not found');
+
+    const isMember = await this.prisma.groupMember.findUnique({
+      where: {
+        userId_groupId: { userId, groupId: trackHeader.groupId },
+      },
+    });
+    if (!isMember) throw new ForbiddenException('Access denied');
+
     const fullTrack = await this.prisma.track.findUnique({
       where: { id: trackId },
       include: {
@@ -130,13 +144,6 @@ export class TracksService {
     });
 
     if (!fullTrack) throw new NotFoundException('Track not found');
-
-    const isMember = await this.prisma.groupMember.findUnique({
-      where: {
-        userId_groupId: { userId, groupId: fullTrack.groupId },
-      },
-    });
-    if (!isMember) throw new ForbiddenException('Access denied');
 
     // Flatten item.progress array to single object
     const mappedCategories = (fullTrack.categories ?? []).map((cat) => ({
@@ -351,7 +358,10 @@ export class TracksService {
   async updateCategory(userId: string, catId: string, data: { name?: string; description?: string; icon?: string; order?: number }) {
     const cat = await this.prisma.category.findUnique({
       where: { id: catId },
-      include: { track: true },
+      select: {
+        trackId: true,
+        track: { select: { groupId: true } },
+      },
     });
     if (!cat) throw new NotFoundException('Category not found');
 
@@ -374,7 +384,10 @@ export class TracksService {
   async deleteCategory(userId: string, catId: string) {
     const cat = await this.prisma.category.findUnique({
       where: { id: catId },
-      include: { track: true },
+      select: {
+        trackId: true,
+        track: { select: { groupId: true } },
+      },
     });
     if (!cat) throw new NotFoundException('Category not found');
 
@@ -396,7 +409,10 @@ export class TracksService {
   async createResource(userId: string, catId: string, data: { name: string; description?: string; type: string; url?: string; isMustDo?: boolean; order?: number }) {
     const cat = await this.prisma.category.findUnique({
       where: { id: catId },
-      include: { track: true },
+      select: {
+        trackId: true,
+        track: { select: { groupId: true } },
+      },
     });
     if (!cat) throw new NotFoundException('Category not found');
 
@@ -426,7 +442,14 @@ export class TracksService {
   async updateResource(userId: string, resId: string, data: { name?: string; description?: string; type?: string; url?: string; isMustDo?: boolean; order?: number }) {
     const res = await this.prisma.resource.findUnique({
       where: { id: resId },
-      include: { category: { include: { track: true } } },
+      select: {
+        category: {
+          select: {
+            trackId: true,
+            track: { select: { groupId: true } },
+          },
+        },
+      },
     });
     if (!res) throw new NotFoundException('Resource not found');
 
@@ -449,7 +472,14 @@ export class TracksService {
   async deleteResource(userId: string, resId: string) {
     const res = await this.prisma.resource.findUnique({
       where: { id: resId },
-      include: { category: { include: { track: true } } },
+      select: {
+        category: {
+          select: {
+            trackId: true,
+            track: { select: { groupId: true } },
+          },
+        },
+      },
     });
     if (!res) throw new NotFoundException('Resource not found');
 
@@ -471,7 +501,14 @@ export class TracksService {
   async createUnit(userId: string, resId: string, data: { name: string; description?: string; order?: number }) {
     const res = await this.prisma.resource.findUnique({
       where: { id: resId },
-      include: { category: { include: { track: true } } },
+      select: {
+        category: {
+          select: {
+            trackId: true,
+            track: { select: { groupId: true } },
+          },
+        },
+      },
     });
     if (!res) throw new NotFoundException('Resource not found');
 
@@ -498,7 +535,18 @@ export class TracksService {
   async updateUnit(userId: string, unitId: string, data: { name?: string; description?: string; order?: number }) {
     const unit = await this.prisma.unit.findUnique({
       where: { id: unitId },
-      include: { resource: { include: { category: { include: { track: true } } } } },
+      select: {
+        resource: {
+          select: {
+            category: {
+              select: {
+                trackId: true,
+                track: { select: { groupId: true } },
+              },
+            },
+          },
+        },
+      },
     });
     if (!unit) throw new NotFoundException('Unit not found');
 
@@ -521,7 +569,18 @@ export class TracksService {
   async deleteUnit(userId: string, unitId: string) {
     const unit = await this.prisma.unit.findUnique({
       where: { id: unitId },
-      include: { resource: { include: { category: { include: { track: true } } } } },
+      select: {
+        resource: {
+          select: {
+            category: {
+              select: {
+                trackId: true,
+                track: { select: { groupId: true } },
+              },
+            },
+          },
+        },
+      },
     });
     if (!unit) throw new NotFoundException('Unit not found');
 
@@ -543,7 +602,18 @@ export class TracksService {
   async createSubUnit(userId: string, unitId: string, data: { name: string; description?: string; order?: number }) {
     const unit = await this.prisma.unit.findUnique({
       where: { id: unitId },
-      include: { resource: { include: { category: { include: { track: true } } } } },
+      select: {
+        resource: {
+          select: {
+            category: {
+              select: {
+                trackId: true,
+                track: { select: { groupId: true } },
+              },
+            },
+          },
+        },
+      },
     });
     if (!unit) throw new NotFoundException('Unit not found');
 
@@ -570,7 +640,22 @@ export class TracksService {
   async updateSubUnit(userId: string, subId: string, data: { name?: string; description?: string; order?: number }) {
     const sub = await this.prisma.subUnit.findUnique({
       where: { id: subId },
-      include: { unit: { include: { resource: { include: { category: { include: { track: true } } } } } } },
+      select: {
+        unit: {
+          select: {
+            resource: {
+              select: {
+                category: {
+                  select: {
+                    trackId: true,
+                    track: { select: { groupId: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
     if (!sub) throw new NotFoundException('SubUnit not found');
 
@@ -593,7 +678,22 @@ export class TracksService {
   async deleteSubUnit(userId: string, subId: string) {
     const sub = await this.prisma.subUnit.findUnique({
       where: { id: subId },
-      include: { unit: { include: { resource: { include: { category: { include: { track: true } } } } } } },
+      select: {
+        unit: {
+          select: {
+            resource: {
+              select: {
+                category: {
+                  select: {
+                    trackId: true,
+                    track: { select: { groupId: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
     if (!sub) throw new NotFoundException('SubUnit not found');
 
@@ -615,7 +715,22 @@ export class TracksService {
   async createItem(userId: string, subId: string, data: { name: string; description?: string; type: string; url?: string; difficulty?: string; order?: number }) {
     const sub = await this.prisma.subUnit.findUnique({
       where: { id: subId },
-      include: { unit: { include: { resource: { include: { category: { include: { track: true } } } } } } },
+      select: {
+        unit: {
+          select: {
+            resource: {
+              select: {
+                category: {
+                  select: {
+                    trackId: true,
+                    track: { select: { groupId: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
     if (!sub) throw new NotFoundException('SubUnit not found');
 
@@ -645,7 +760,26 @@ export class TracksService {
   async updateItem(userId: string, itemId: string, data: { name?: string; description?: string; type?: string; url?: string; difficulty?: string; order?: number }) {
     const item = await this.prisma.item.findUnique({
       where: { id: itemId },
-      include: { subUnit: { include: { unit: { include: { resource: { include: { category: { include: { track: true } } } } } } } } },
+      select: {
+        subUnit: {
+          select: {
+            unit: {
+              select: {
+                resource: {
+                  select: {
+                    category: {
+                      select: {
+                        trackId: true,
+                        track: { select: { groupId: true } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
     if (!item) throw new NotFoundException('Item not found');
 
@@ -668,7 +802,26 @@ export class TracksService {
   async deleteItem(userId: string, itemId: string) {
     const item = await this.prisma.item.findUnique({
       where: { id: itemId },
-      include: { subUnit: { include: { unit: { include: { resource: { include: { category: { include: { track: true } } } } } } } } },
+      select: {
+        subUnit: {
+          select: {
+            unit: {
+              select: {
+                resource: {
+                  select: {
+                    category: {
+                      select: {
+                        trackId: true,
+                        track: { select: { groupId: true } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
     if (!item) throw new NotFoundException('Item not found');
 

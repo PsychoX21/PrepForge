@@ -13,6 +13,8 @@ import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '@prisma/client';
 import { CreateGroupDto } from './dto/create-group.dto';
+import { UpdateGroupDto } from './dto/update-group.dto';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('groups')
 @UseGuards(FirebaseAuthGuard)
@@ -39,6 +41,7 @@ export class GroupsController {
 
   /** POST /api/groups/join/:inviteCode — Join a group via invite code */
   @Post('join/:inviteCode')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   joinByCode(
     @Param('inviteCode') inviteCode: string,
     @CurrentUser() user: User,
@@ -48,6 +51,7 @@ export class GroupsController {
 
   /** POST /api/groups/:id/join — Join a group via invite code (compatibility fallback) */
   @Post(':id/join')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   join(
     @Param('id') inviteCode: string,
     @CurrentUser() user: User,
@@ -72,7 +76,7 @@ export class GroupsController {
   update(
     @Param('id') id: string,
     @CurrentUser() user: User,
-    @Body() dto: { name?: string; description?: string },
+    @Body() dto: UpdateGroupDto,
   ) {
     return this.groupsService.updateGroup(id, user.id, dto);
   }

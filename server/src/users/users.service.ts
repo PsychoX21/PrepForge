@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { FirebaseAdminService } from '../auth/firebase-admin.service';
 
@@ -37,6 +37,18 @@ export class UsersService {
     return this.prisma.user.update({
       where: { id: userId },
       data,
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        photoUrl: true,
+        xp: true,
+        level: true,
+        streak: true,
+        longestStreak: true,
+        lastActiveDate: true,
+        createdAt: true,
+      },
     });
   }
 
@@ -68,6 +80,10 @@ export class UsersService {
         },
       }),
     ]);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
 
     return {
       ...user,

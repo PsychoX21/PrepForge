@@ -16,7 +16,7 @@ export class AuthService {
   /**
    * Verify an ID token and sync/create the user in our database.
    */
-  async verifyAndSyncUser(idToken: string) {
+  async verifyAndSyncUser(idToken: string, localDate?: string) {
     try {
       const decoded = await this.firebaseAdmin.verifyToken(idToken);
 
@@ -95,9 +95,27 @@ export class AuthService {
       }
 
       // Update login streak and award daily XP
-      await this.gamification.processLogin(user.id);
+      await this.gamification.processLogin(user.id, localDate);
 
-      return user;
+      // Return user profile excluding firebaseUid, populating memberships
+      return this.prisma.user.findUnique({
+        where: { id: user.id },
+        select: {
+          id: true,
+          email: true,
+          displayName: true,
+          photoUrl: true,
+          xp: true,
+          level: true,
+          streak: true,
+          longestStreak: true,
+          lastActiveDate: true,
+          createdAt: true,
+          memberships: {
+            include: { group: { select: { id: true, name: true } } },
+          },
+        },
+      });
     } catch (err) {
       this.logger.error(`Failed to verify and sync user: ${(err as Error).message}`, (err as Error).stack);
       throw new UnauthorizedException('Invalid token');

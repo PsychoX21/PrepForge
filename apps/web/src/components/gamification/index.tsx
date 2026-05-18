@@ -6,6 +6,7 @@
 import { motion } from "framer-motion";
 import { Flame, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LEVEL_TITLES } from "@prepforge/shared";
 
 // ─── XPBar ──────────────────────────────────────────────────────────────────
 
@@ -86,29 +87,6 @@ export function StreakBadge({ streak, className }: StreakBadgeProps) {
 }
 
 // ─── LevelBadge ─────────────────────────────────────────────────────────────
-
-const LEVEL_TITLES = [
-  "Novice",
-  "Apprentice",
-  "Scholar",
-  "Practitioner",
-  "Journeyman",
-  "Specialist",
-  "Expert",
-  "Master",
-  "Grandmaster",
-  "Sage",
-  "Oracle",
-  "Legend",
-  "Mythic",
-  "Transcendent",
-  "Ascendant",
-  "Immortal",
-  "Celestial",
-  "Omniscient",
-  "Ethereal",
-  "Godlike",
-];
 
 interface LevelBadgeProps {
   level: number;

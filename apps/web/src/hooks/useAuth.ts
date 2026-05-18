@@ -11,7 +11,7 @@ import {
   signOut,
   getIdToken,
 } from "@/lib/firebase";
-import { api } from "@/lib/api";
+import { api, clearTokenCache } from "@/lib/api";
 import type { User } from "@/lib/types";
 
 export function useAuth() {
@@ -74,6 +74,7 @@ export function useAuth() {
           if (token === "demo-token") return;
           const userData = await api.post<{ data: User }>("/auth/verify", {
             idToken: token,
+            localDate: new Date().toLocaleDateString('en-CA'),
           });
           setUser((userData as { data?: User }).data || (userData as unknown as User));
         } catch (err) {
@@ -143,6 +144,7 @@ export function useAuth() {
       if (typeof window !== "undefined") {
         sessionStorage.removeItem("prepforge_demo_mode");
       }
+      clearTokenCache();
       await signOut();
       reset();
     } catch (err) {
@@ -162,6 +164,7 @@ export function useAuth() {
       // Delete database record (handles Prisma cascades and Firebase Admin SDK deletion)
       await api.delete("/users/me");
       
+      clearTokenCache();
       await signOut();
       reset();
     } catch (err) {

@@ -120,15 +120,25 @@ export class ProgressService {
       take,
       include: {
         item: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            difficulty: true,
             subUnit: {
-              include: {
+              select: {
+                id: true,
                 unit: {
-                  include: {
+                  select: {
+                    id: true,
                     resource: {
-                      include: {
+                      select: {
+                        id: true,
                         category: {
-                          include: { track: { select: { name: true, color: true } } },
+                          select: {
+                            id: true,
+                            trackId: true,
+                          },
                         },
                       },
                     },
@@ -156,15 +166,25 @@ export class ProgressService {
       take,
       include: {
         item: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            difficulty: true,
             subUnit: {
-              include: {
+              select: {
+                id: true,
                 unit: {
-                  include: {
+                  select: {
+                    id: true,
                     resource: {
-                      include: {
+                      select: {
+                        id: true,
                         category: {
-                          include: { track: { select: { name: true, color: true } } },
+                          select: {
+                            id: true,
+                            trackId: true,
+                          },
                         },
                       },
                     },

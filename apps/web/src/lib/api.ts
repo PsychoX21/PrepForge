@@ -137,3 +137,7 @@ export const api = {
 // ─── Typed API Endpoints ────────────────────────────────────────────────────
 
 export type { ApiResponse, PaginatedResponse };
+
+export function clearTokenCache() {
+  cachedToken = null;
+}

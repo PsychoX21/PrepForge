@@ -11,9 +11,12 @@ export class AuthController {
    * Verify a Firebase ID token and return the user profile.
    */
   @Post('verify')
-  @Throttle({ default: { ttl: 60000, limit: 60 } })
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @HttpCode(HttpStatus.OK)
-  async verifyToken(@Body('idToken') idToken: string) {
-    return this.authService.verifyAndSyncUser(idToken);
+  async verifyToken(
+    @Body('idToken') idToken: string,
+    @Body('localDate') localDate?: string,
+  ) {
+    return this.authService.verifyAndSyncUser(idToken, localDate);
   }
 }

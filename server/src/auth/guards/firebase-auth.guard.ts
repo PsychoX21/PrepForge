@@ -34,88 +34,22 @@ export class FirebaseAuthGuard implements CanActivate {
     try {
       const decoded = await this.firebaseAdmin.verifyToken(token);
 
-      // Find or create user in our database
-      let user = await this.prisma.user.findUnique({
+      // Find user in our database
+      const user = await this.prisma.user.findUnique({
         where: { firebaseUid: decoded.uid },
       });
 
-      if (!user && decoded.email) {
-        user = await this.prisma.user.findFirst({
-          where: { email: decoded.email },
-        });
-        if (user) {
-          user = await this.prisma.user.update({
-            where: { id: user.id },
-            data: { firebaseUid: decoded.uid },
-          });
-          this.logger.log(`Linked existing user email ${user.email} to Firebase UID ${decoded.uid}`);
-        }
-      }
-
       if (!user) {
-        try {
-          user = await this.prisma.user.create({
-            data: {
-              firebaseUid: decoded.uid,
-              email: decoded.email || '',
-              displayName: decoded.name || decoded.email?.split('@')[0] || 'User',
-              photoUrl: decoded.picture || null,
-            },
-          });
-          this.logger.log(`New user created: ${user.email}`);
-
-          // Automatically enroll in default group
-          let defaultGroup = await this.prisma.group.findFirst({
-            where: { isDefault: true },
-          });
-          if (!defaultGroup) {
-            let systemUser = await this.prisma.user.findFirst({
-              where: { email: 'system@prepforge.app' },
-            });
-            if (!systemUser) {
-              systemUser = await this.prisma.user.create({
-                data: {
-                  firebaseUid: 'system_admin_uid',
-                  email: 'system@prepforge.app',
-                  displayName: 'System Admin',
-                },
-              });
-            }
-            defaultGroup = await this.prisma.group.create({
-              data: {
-                name: 'PrepForge Default',
-                description: 'Default group with all curated content',
-                inviteCode: 'DEFAULT_GROUP',
-                isDefault: true,
-                createdById: systemUser.id,
-              },
-            });
-          }
-          if (defaultGroup) {
-            await this.prisma.groupMember.create({
-              data: {
-                userId: user.id,
-                groupId: defaultGroup.id,
-                role: 'MEMBER',
-              },
-            });
-            this.logger.log(`Automatically enrolled ${user.email} in default group ${defaultGroup.name}`);
-          }
-        } catch (createError) {
-          // Fallback if another request concurrently created the user
-          user = await this.prisma.user.findUnique({
-            where: { firebaseUid: decoded.uid },
-          });
-          if (!user) {
-            throw createError;
-          }
-        }
+        throw new UnauthorizedException('User not registered. Call /auth/verify first.');
       }
 
       // Attach user to request
       request.user = user;
       return true;
     } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
       this.logger.warn(`Auth failed: ${(error as Error).message}`);
       throw new UnauthorizedException('Invalid or expired token');
     }

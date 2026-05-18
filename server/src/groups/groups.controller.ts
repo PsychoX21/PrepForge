@@ -71,6 +71,12 @@ export class GroupsController {
     return this.groupsService.getLeaderboard(id, user.id);
   }
 
+  /** GET /api/groups/:id/export — Export group curriculum as JSON */
+  @Get(':id/export')
+  exportGroup(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.groupsService.exportGroup(id, user.id);
+  }
+
   /** PATCH /api/groups/:id — Update group settings */
   @Patch(':id')
   update(

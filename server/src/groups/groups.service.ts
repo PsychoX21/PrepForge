@@ -237,4 +237,88 @@ export class GroupsService {
 
     return { success: true, message: 'Group deleted successfully' };
   }
+
+  async exportGroup(groupId: string, userId: string) {
+    // Verify membership
+    const member = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId } },
+    });
+    if (!member) {
+      throw new ForbiddenException('Not a member of this group');
+    }
+
+    // Fetch the full recursive hierarchy
+    const tracks = await this.prisma.track.findMany({
+      where: { groupId },
+      orderBy: { order: 'asc' },
+      include: {
+        categories: {
+          orderBy: { order: 'asc' },
+          include: {
+            resources: {
+              orderBy: { order: 'asc' },
+              include: {
+                units: {
+                  orderBy: { order: 'asc' },
+                  include: {
+                    subUnits: {
+                      orderBy: { order: 'asc' },
+                      include: {
+                        items: {
+                          orderBy: { order: 'asc' }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Strip database IDs, keys, timestamps, etc.
+    const seedTracks = tracks.map(track => ({
+      name: track.name,
+      description: track.description || '',
+      icon: track.icon || '',
+      color: track.color || '',
+      order: track.order,
+      categories: track.categories.map(cat => ({
+        name: cat.name,
+        order: cat.order,
+        description: cat.description || undefined,
+        icon: cat.icon || undefined,
+        resources: cat.resources.map(res => ({
+          name: res.name,
+          type: res.type,
+          order: res.order,
+          description: res.description || undefined,
+          url: res.url || undefined,
+          isMustDo: res.isMustDo,
+          units: res.units.map(unit => ({
+            name: unit.name,
+            order: unit.order,
+            description: unit.description || undefined,
+            subUnits: unit.subUnits.map(subUnit => ({
+              name: subUnit.name,
+              order: subUnit.order,
+              description: subUnit.description || undefined,
+              items: subUnit.items.map(item => ({
+                name: item.name,
+                type: item.type,
+                order: item.order,
+                description: item.description || undefined,
+                url: item.url || undefined,
+                difficulty: item.difficulty || undefined
+              }))
+            }))
+          }))
+        }))
+      }))
+    }));
+
+    return seedTracks;
+  }
 }

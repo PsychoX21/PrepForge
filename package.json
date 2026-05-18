@@ -11,6 +11,9 @@
   "scripts": {
     "dev:web": "npm run dev --workspace=apps/web",
     "dev:server": "npm run start:dev --workspace=server",
+    "dev:mobile": "npm run start --workspace=apps/mobile",
+    "android:mobile": "npm run android --workspace=apps/mobile",
+    "ios:mobile": "npm run ios --workspace=apps/mobile",
     "dev": "concurrently \"npm run dev:web\" \"npm run dev:server\"",
     "build:shared": "npm run build --workspace=packages/shared",
     "build:web": "npm run build --workspace=apps/web",

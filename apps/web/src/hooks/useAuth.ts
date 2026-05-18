@@ -159,16 +159,8 @@ export function useAuth() {
         sessionStorage.removeItem("prepforge_demo_mode");
       }
       
-      // Delete database record
+      // Delete database record (handles Prisma cascades and Firebase Admin SDK deletion)
       await api.delete("/users/me");
-      
-      // Try to delete Firebase Auth user client-side (requires recent auth)
-      try {
-        const { deleteCurrentUser } = await import("@/lib/firebase");
-        await deleteCurrentUser();
-      } catch (fbErr) {
-        console.warn("Could not delete Firebase Auth user client-side:", fbErr);
-      }
       
       await signOut();
       reset();

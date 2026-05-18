@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Bell, Menu, Command } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,30 @@ export function Topbar({ title, subtitle }: TopbarProps) {
   const { setMobileMenuOpen, setSearchOpen } = useUIStore();
   const [showNotifications, setShowNotifications] = useState(false);
   const { data: activityData } = useUserActivities();
+  const [lastDismissedId, setLastDismissedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setLastDismissedId(localStorage.getItem("prepforge_last_dismissed_activity_id"));
+    }
+  }, []);
+
+  const visibleLogs = activityData?.logs?.filter((log) => {
+    if (!lastDismissedId) return true;
+    const dismissedIndex = activityData.logs.findIndex((l) => l.id === lastDismissedId);
+    if (dismissedIndex === -1) return true;
+    const currentIndex = activityData.logs.findIndex((l) => l.id === log.id);
+    return currentIndex < dismissedIndex;
+  }) || [];
+
+  const handleDismissAll = () => {
+    if (activityData?.logs && activityData.logs.length > 0) {
+      const newestId = activityData.logs[0].id;
+      localStorage.setItem("prepforge_last_dismissed_activity_id", newestId);
+      setLastDismissedId(newestId);
+    }
+    setShowNotifications(false);
+  };
 
   return (
     <header className="sticky top-0 z-30 h-16 bg-bg-primary/80 backdrop-blur-xl border-b border-border-default/50">
@@ -76,7 +100,9 @@ export function Topbar({ title, subtitle }: TopbarProps) {
             >
               <div className="relative">
                 <Bell className="w-4 h-4" />
-                <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-accent-blue rounded-full" />
+                {visibleLogs.length > 0 && (
+                  <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-accent-blue rounded-full" />
+                )}
               </div>
             </Button>
 
@@ -86,11 +112,11 @@ export function Topbar({ title, subtitle }: TopbarProps) {
                 <div className="absolute right-0 top-10 w-80 bg-bg-primary border border-border-default/80 rounded-2xl p-4 shadow-2xl space-y-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                   <div className="flex items-center justify-between border-b border-border-default/20 pb-2">
                     <span className="text-xs font-bold uppercase tracking-wider text-text-primary">Notifications</span>
-                    <button onClick={() => setShowNotifications(false)} className="text-[10px] text-text-muted hover:text-text-primary">Dismiss all</button>
+                    <button onClick={handleDismissAll} className="text-[10px] text-text-muted hover:text-text-primary">Dismiss all</button>
                   </div>
                   <div className="space-y-2.5 max-h-[250px] overflow-y-auto no-scrollbar">
-                    {activityData?.logs && activityData.logs.length > 0 ? (
-                      activityData.logs.slice(0, 5).map((log) => {
+                    {visibleLogs.length > 0 ? (
+                      visibleLogs.slice(0, 5).map((log) => {
                         const { label, emoji, bgColor, textColor } = {
                           MARK_ITEM_DONE: { label: "Completed a Study Item", emoji: "📚", bgColor: "bg-accent-blue/10", textColor: "text-accent-blue" },
                           MARK_SUBUNIT_DONE: { label: "Finished a Topic Subunit", emoji: "🎯", bgColor: "bg-accent-purple/10", textColor: "text-accent-purple" },

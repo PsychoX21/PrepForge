@@ -101,4 +101,15 @@ export class FirebaseAdminService implements OnModuleInit {
     }
     return admin.auth().getUser(uid);
   }
+
+  /**
+   * Delete a user from Firebase Auth by UID.
+   */
+  async deleteUser(uid: string): Promise<void> {
+    if (this.isDevMode) {
+      this.logger.log(`Bypass mode: mock delete user ${uid}`);
+      return;
+    }
+    await admin.auth().deleteUser(uid);
+  }
 }

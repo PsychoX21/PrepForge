@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { FirebaseAdminService } from '../auth/firebase-admin.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly firebaseAdmin: FirebaseAdminService,
+  ) {}
 
   async getProfile(userId: string) {
     return this.prisma.user.findUnique({
@@ -148,14 +152,21 @@ export class UsersService {
   }
 
   async deleteAccount(userId: string) {
-    return this.prisma.$transaction(async (tx) => {
-      // 1. Find all groups owned by this user
+    // 1. Fetch user to get their firebaseUid before deleting the record
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { firebaseUid: true },
+    });
+
+    // 2. Perform DB deletion in transaction
+    await this.prisma.$transaction(async (tx) => {
+      // Find all groups owned by this user
       const ownedGroups = await tx.group.findMany({
         where: { createdById: userId },
         select: { id: true },
       });
 
-      // 2. Delete all owned groups (this will cascade delete tracks, members, etc.)
+      // Delete all owned groups (this will cascade delete tracks, members, etc.)
       if (ownedGroups.length > 0) {
         const groupIds = ownedGroups.map((g) => g.id);
         await tx.group.deleteMany({
@@ -163,10 +174,21 @@ export class UsersService {
         });
       }
 
-      // 3. Delete user (which cascades to memberships, progress, playlists, logs, notes)
-      return tx.user.delete({
+      // Delete user (which cascades to memberships, progress, playlists, logs, notes)
+      await tx.user.delete({
         where: { id: userId },
       });
     });
+
+    // 3. Purge user from Firebase Auth using Admin SDK privilege (zero reauth restrictions!)
+    if (user?.firebaseUid) {
+      try {
+        await this.firebaseAdmin.deleteUser(user.firebaseUid);
+      } catch (err) {
+        console.error(`Failed to delete Firebase Auth user server-side: ${(err as Error).message}`);
+      }
+    }
+
+    return { success: true };
   }
 }

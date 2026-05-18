@@ -76,10 +76,19 @@ export class SeedService {
     const tracks = DEFAULT_TRACKS as SeedTrack[];
 
     for (const trackData of tracks) {
-      const existingTrack = await this.prisma.track.findFirst({
-        where: { groupId, name: trackData.name, isDefault: true },
+      const existingTracks = await this.prisma.track.findMany({
+        where: { groupId, name: trackData.name },
+        orderBy: { createdAt: 'asc' },
       });
-      if (existingTrack) {
+
+      if (existingTracks.length > 0) {
+        if (existingTracks.length > 1) {
+          this.logger.log(`🧹 Found ${existingTracks.length} duplicate tracks for "${trackData.name}", performing self-healing cleanup...`);
+          // Keep the first one, delete all duplicate entries (cascades cleanly)
+          for (let i = 1; i < existingTracks.length; i++) {
+            await this.prisma.track.delete({ where: { id: existingTracks[i].id } });
+          }
+        }
         this.logger.log(`⏭ Track "${trackData.name}" already seeded for group ${groupId}, skipping`);
         continue;
       }

@@ -4,6 +4,9 @@ import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '@prisma/client';
 import { Throttle } from '@nestjs/throttler';
+import { UpdateProgressDto } from './dto/update-progress.dto';
+import { CreatePlaylistDto } from './dto/create-playlist.dto';
+import { AddToPlaylistDto } from './dto/add-to-playlist.dto';
 
 @Controller('progress')
 @UseGuards(FirebaseAuthGuard)
@@ -16,12 +19,7 @@ export class ProgressController {
     @Param('itemId') itemId: string,
     @CurrentUser() user: User,
     @Body()
-    data: {
-      status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE';
-      isStarred?: boolean;
-      isWatchLater?: boolean;
-      completion?: number;
-    },
+    data: UpdateProgressDto,
   ) {
     return this.progressService.updateProgress(user.id, itemId, data);
   }
@@ -69,7 +67,7 @@ export class ProgressController {
   @Post('playlists')
   createPlaylist(
     @CurrentUser() user: User,
-    @Body() data: { name: string; description?: string },
+    @Body() data: CreatePlaylistDto,
   ) {
     return this.progressService.createPlaylist(user.id, data.name, data.description);
   }
@@ -88,7 +86,7 @@ export class ProgressController {
   addToPlaylist(
     @CurrentUser() user: User,
     @Param('id') id: string,
-    @Body() data: { itemId: string },
+    @Body() data: AddToPlaylistDto,
   ) {
     return this.progressService.addToPlaylist(user.id, id, data.itemId);
   }

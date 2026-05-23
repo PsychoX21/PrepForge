@@ -20,7 +20,7 @@ export class GamificationService {
    * Award XP for multiple actions and check for level-ups.
    * Batches DB writes to prevent connection exhaustion.
    */
-  async awardXP(userId: string, actions: string[]) {
+  async awardXP(userId: string, actions: string[], metadata?: string) {
     const totalXp = actions.reduce((sum, a) => sum + (XP_TABLE[a] || 0), 0);
     if (totalXp === 0) return;
 
@@ -46,6 +46,7 @@ export class GamificationService {
             userId,
             action: a,
             xpAwarded: XP_TABLE[a],
+            metadata: metadata || null,
           })),
         });
       }
@@ -59,7 +60,7 @@ export class GamificationService {
    * Supports an optional localDate (YYYY-MM-DD) to account for client-side timezone day boundaries.
    */
   async processLogin(userId: string, localDate?: string) {
-    const today = localDate || new Date().toISOString().split('T')[0];
+    const today = this.parseLocalDate(localDate);
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -72,7 +73,7 @@ export class GamificationService {
       return { streak: user.streak };
     }
 
-    let newStreak = user.streak;
+    let newStreak: number;
     const yesterdayDate = new Date(today + 'T00:00:00Z');
     yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
     const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
@@ -136,5 +137,29 @@ export class GamificationService {
       return LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1] * 2;
     }
     return LEVEL_THRESHOLDS[currentLevel]; // next threshold
+  }
+
+  /**
+   * Parse client date string safely to prevent backend RangeErrors from timezone formats.
+   */
+  private parseLocalDate(dateStr?: string): string {
+    if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return dateStr;
+    }
+    if (dateStr) {
+      const parsed = Date.parse(dateStr);
+      if (!isNaN(parsed)) {
+        const d = new Date(parsed);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+    }
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 }

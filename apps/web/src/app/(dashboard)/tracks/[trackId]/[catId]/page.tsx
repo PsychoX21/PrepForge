@@ -7,7 +7,7 @@
  */
 import * as React from "react";
 import { use, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -25,11 +25,13 @@ import {
   Plus,
   Edit2,
   Trash2,
-  ListPlus
+  ListPlus,
+  Palette
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import CollaborativeWhiteboard from "@/components/whiteboard/CollaborativeWhiteboard";
  
 function Skeleton({ className = "" }: { className?: string }) {
   return <div className={`animate-pulse bg-bg-elevated rounded-xl ${className}`} />;
@@ -98,6 +100,7 @@ export default function CategoryDetailPage({ params }: PageProps) {
 
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
   const [localCategory, setLocalCategory] = useState<any>(null);
+  const [activeWhiteboardItem, setActiveWhiteboardItem] = useState<{ id: string; name: string } | null>(null);
   
   // Customization Mode
   const [isEditMode, setIsEditMode] = useState(false);
@@ -748,6 +751,18 @@ export default function CategoryDetailPage({ params }: PageProps) {
                                     <ListPlus className="w-3.5 h-3.5" />
                                   </button>
 
+                                  {/* Collaborative whiteboard button (for puzzles and problems) */}
+                                  {(item.type === "PUZZLE" || item.type === "PROBLEM") && (
+                                    <button
+                                      className="p-1.5 rounded-lg border bg-transparent border-border-default/20 text-text-muted hover:text-accent-purple hover:bg-accent-purple/5 transition-all flex items-center justify-center"
+                                      onClick={() => setActiveWhiteboardItem({ id: item.id, name: item.name })}
+                                      title="Open Shared Sketch Pad"
+                                      aria-label="Shared Whiteboard"
+                                    >
+                                      <Palette className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+
                                   {/* Mark done button */}
                                   {status === "DONE" ? (
                                     <Button
@@ -884,6 +899,17 @@ export default function CategoryDetailPage({ params }: PageProps) {
           </motion.div>
         </div>
       )}
+
+      {/* Shared Live Whiteboard Overlay */}
+      <AnimatePresence>
+        {activeWhiteboardItem && (
+          <CollaborativeWhiteboard
+            itemId={activeWhiteboardItem.id}
+            itemName={activeWhiteboardItem.name}
+            onClose={() => setActiveWhiteboardItem(null)}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

@@ -9,12 +9,14 @@ import { CreateGroupDto } from './dto/create-group.dto';
 import { nanoid } from 'nanoid';
 
 import { SeedService } from '../seed/seed.service';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class GroupsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly seedService: SeedService,
+    private readonly redis: RedisService,
   ) {}
 
   async create(userId: string, dto: CreateGroupDto) {
@@ -126,6 +128,8 @@ export class GroupsService {
       },
     });
 
+    await this.redis.del(`group:${group.id}:leaderboard`);
+
     return { message: 'Joined successfully', groupId: group.id };
   }
 
@@ -163,6 +167,10 @@ export class GroupsService {
       throw new ForbiddenException('Not a member of this group');
     }
 
+    const cacheKey = `group:${groupId}:leaderboard`;
+    const cached = await this.redis.get<any[]>(cacheKey);
+    if (cached) return cached;
+
     const members = await this.prisma.groupMember.findMany({
       where: { groupId },
       include: {
@@ -195,6 +203,7 @@ export class GroupsService {
         streak: m.user.streak,
       }));
 
+    await this.redis.set(cacheKey, sorted, 60); // 60 seconds cache
     return sorted;
   }
 

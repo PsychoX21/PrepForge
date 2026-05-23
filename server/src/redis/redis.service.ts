@@ -135,4 +135,29 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn(`Failed to invalidate keys for track ${trackId}: ${err.message}`);
     }
   }
+
+  async rpush(key: string, value: string): Promise<void> {
+    try {
+      await this.client.rpush(key, value);
+    } catch (err) {
+      this.logger.warn(`Failed to RPUSH to Redis key ${key}: ${err.message}`);
+    }
+  }
+
+  async lrange(key: string, start: number, end: number): Promise<string[]> {
+    try {
+      return await this.client.lrange(key, start, end);
+    } catch (err) {
+      this.logger.warn(`Failed to LRANGE from Redis key ${key}: ${err.message}`);
+      return [];
+    }
+  }
+
+  async expire(key: string, seconds: number): Promise<void> {
+    try {
+      await this.client.expire(key, seconds);
+    } catch (err) {
+      this.logger.warn(`Failed to EXPIRE Redis key ${key}: ${err.message}`);
+    }
+  }
 }

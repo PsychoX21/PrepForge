@@ -72,9 +72,15 @@ export function useAuth() {
         try {
           const token = await fbUser.getIdToken();
           if (token === "demo-token") return;
+          const d = new Date();
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          const localDate = `${year}-${month}-${day}`;
+
           const userData = await api.post<{ data: User }>("/auth/verify", {
             idToken: token,
-            localDate: new Date().toLocaleDateString('en-CA'),
+            localDate,
           });
           setUser((userData as { data?: User }).data || (userData as unknown as User));
         } catch (err) {

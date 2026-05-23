@@ -99,6 +99,19 @@ async function apiFetch<T>(
   // Handle errors
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
+    
+    // Self-healing session auto-logout on unauthorized database states
+    if (response.status === 401 && typeof window !== "undefined") {
+      clearTokenCache();
+      import("./firebase").then(({ signOut }) => {
+        signOut().then(() => {
+          window.location.href = "/";
+        });
+      }).catch(() => {
+        window.location.href = "/";
+      });
+    }
+
     throw new ApiError(
       response.status,
       errorData?.message || `API Error: ${response.statusText}`,

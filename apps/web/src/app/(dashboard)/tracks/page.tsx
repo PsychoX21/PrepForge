@@ -271,9 +271,9 @@ export default function TracksPage() {
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{track.icon || "📚"}</span>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 group">
                         <h2 className="text-lg font-semibold text-text-primary font-[var(--font-outfit)]">{track.name}</h2>
-                        <div className="flex items-center gap-1.5 opacity-0 hover:opacity-100 focus-within:opacity-100 transition-opacity ml-2">
+                        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity ml-2">
                           <button
                             onClick={() => openEditForm(track)}
                             className="p-1 hover:bg-bg-elevated rounded transition-colors text-text-muted hover:text-text-secondary"

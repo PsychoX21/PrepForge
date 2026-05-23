@@ -15,6 +15,7 @@ import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { PrismaService } from '../prisma/prisma.service';
 import { FirebaseAdminService } from '../auth/firebase-admin.service';
+import { RedisService } from '../redis/redis.service';
 
 interface UserSocket extends Socket {
   userId?: string;
@@ -51,9 +52,15 @@ export class RealtimeGateway
   // Cooldown tracker for chat messaging rate-limiting (max 1 message/sec)
   private lastMessageTime = new Map<string, number>();
 
+  // Anti-flood dynamic window trackers
+  private lastFocusTime = new Map<string, { count: number; windowStart: number }>();
+  private lastProgressTime = new Map<string, { count: number; windowStart: number }>();
+  private lastDrawTime = new Map<string, { count: number; windowStart: number }>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly firebaseAdmin: FirebaseAdminService,
+    private readonly redis: RedisService,
   ) {}
 
   // ─── Connection Lifecycle ───────────────────────────────────────────────
@@ -181,6 +188,11 @@ export class RealtimeGateway
   ) {
     if (!client.userId) return;
 
+    if (!this.checkSpamLimit(client.userId, this.lastFocusTime, 5, 10000)) {
+      client.emit('error', { message: 'Presence focus update rate limit exceeded' });
+      return;
+    }
+
     const userData = this.onlineUsers.get(client.userId);
     if (userData) {
       userData.currentFocus = data.currentFocus;
@@ -247,10 +259,85 @@ export class RealtimeGateway
   ) {
     if (!client.userId || !client.groupId) return;
 
+    if (!this.checkSpamLimit(client.userId, this.lastProgressTime, 5, 10000)) {
+      client.emit('error', { message: 'Progress update rate limit exceeded' });
+      return;
+    }
+
     this.server.to(`group:${client.groupId}`).emit('progress:update', {
       userId: client.userId,
       ...data,
     });
+  }
+
+  // ─── Shared Live Whiteboard ───────────────────────────────────────────
+
+  @SubscribeMessage('whiteboard:join')
+  async handleWhiteboardJoin(
+    @ConnectedSocket() client: UserSocket,
+    @MessageBody() data: { itemId: string },
+  ) {
+    if (!client.userId || !client.groupId) return;
+    client.join(`whiteboard:${data.itemId}`);
+    
+    // Fetch cached stroke history from Redis and push to the joining user!
+    const cacheKey = `whiteboard_strokes:${data.itemId}`;
+    const rawStrokes = await this.redis.lrange(cacheKey, 0, -1);
+    const strokes = rawStrokes.map((s) => JSON.parse(s));
+    
+    client.emit('whiteboard:history', { itemId: data.itemId, strokes });
+    this.logger.log(`User ${client.userId} joined whiteboard room: ${data.itemId} (Loaded ${strokes.length} cached strokes)`);
+  }
+
+  @SubscribeMessage('whiteboard:draw')
+  async handleWhiteboardDraw(
+    @ConnectedSocket() client: UserSocket,
+    @MessageBody()
+    data: {
+      itemId: string;
+      stroke: {
+        x1: number;
+        y1: number;
+        x2: number;
+        y2: number;
+        color: string;
+        size: number;
+        isEraser: boolean;
+      };
+    },
+  ) {
+    if (!client.userId || !client.groupId) return;
+
+    // Drawing Rate Limiting: max 120 drawing events per second to prevent connection and UI throttling!
+    if (!this.checkSpamLimit(client.userId, this.lastDrawTime, 120, 1000)) {
+      return; // Silent drop of excess coordinates frames
+    }
+
+    // Broadcast the raw stroke event to all other players in the whiteboard room!
+    client.to(`whiteboard:${data.itemId}`).emit('whiteboard:draw', {
+      userId: client.userId,
+      stroke: data.stroke,
+    });
+
+    // Save/Append the drawing stroke in Redis history list with 2-hour TTL
+    const cacheKey = `whiteboard_strokes:${data.itemId}`;
+    await this.redis.rpush(cacheKey, JSON.stringify(data.stroke));
+    await this.redis.expire(cacheKey, 7200); // 2 hours TTL
+  }
+
+  @SubscribeMessage('whiteboard:clear')
+  async handleWhiteboardClear(
+    @ConnectedSocket() client: UserSocket,
+    @MessageBody() data: { itemId: string },
+  ) {
+    if (!client.userId || !client.groupId) return;
+
+    // Broadcast clear event to other whiteboard room members
+    client.to(`whiteboard:${data.itemId}`).emit('whiteboard:clear');
+
+    // Remove drawing history list from Redis
+    const cacheKey = `whiteboard_strokes:${data.itemId}`;
+    await this.redis.del(cacheKey);
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────
@@ -272,5 +359,24 @@ export class RealtimeGateway
     }
 
     this.server.to(`group:${groupId}`).emit('presence:list', online);
+  }
+
+  private checkSpamLimit(
+    userId: string,
+    tracker: Map<string, { count: number; windowStart: number }>,
+    maxCount: number,
+    windowMs: number
+  ): boolean {
+    const now = Date.now();
+    const userRecord = tracker.get(userId);
+    if (!userRecord || now - userRecord.windowStart > windowMs) {
+      tracker.set(userId, { count: 1, windowStart: now });
+      return true;
+    }
+    if (userRecord.count >= maxCount) {
+      return false; // rate limit exceeded!
+    }
+    userRecord.count++;
+    return true;
   }
 }

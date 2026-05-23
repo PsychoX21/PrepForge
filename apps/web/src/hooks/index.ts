@@ -35,14 +35,37 @@ export function useSocket() {
     let isMounted = true;  // cancellation flag for the async race
     consumerCount++;
 
+    // Sync state with current instance status immediately
+    if (socketInstance) {
+      setIsConnected(socketInstance.connected);
+    }
+
+    const handleConnect = () => {
+      if (isMounted) setIsConnected(true);
+    };
+
+    const handleDisconnect = () => {
+      if (isMounted) setIsConnected(false);
+    };
+
+    const setupListeners = (socket: Socket) => {
+      socket.on("connect", handleConnect);
+      socket.on("disconnect", handleDisconnect);
+    };
+
+    const teardownListeners = (socket: Socket) => {
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+    };
+
+    if (socketInstance) {
+      setupListeners(socketInstance);
+    }
+
     const connect = async () => {
-      if (socketInstance) {
-        if (isMounted) setIsConnected(socketInstance.connected);
-        return;
-      }
+      if (socketInstance) return;
 
       const token = await firebaseUser.getIdToken();
-
       if (!isMounted) return;
 
       const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:4001";
@@ -54,12 +77,7 @@ export function useSocket() {
         reconnectionAttempts: 10,
       });
 
-      socketInstance.on("connect", () => {
-        if (isMounted) setIsConnected(true);
-      });
-      socketInstance.on("disconnect", () => {
-        if (isMounted) setIsConnected(false);
-      });
+      setupListeners(socketInstance);
     };
 
     connect();
@@ -67,6 +85,10 @@ export function useSocket() {
     return () => {
       isMounted = false;
       consumerCount--;
+
+      if (socketInstance) {
+        teardownListeners(socketInstance);
+      }
 
       if (consumerCount === 0) {
         socketInstance?.disconnect();

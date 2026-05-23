@@ -122,6 +122,7 @@ export function useWatchLater() {
 export function useUpdateProgress() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { setUser } = useAuthStore();
 
   const update = useCallback(
     async (
@@ -136,7 +137,17 @@ export function useUpdateProgress() {
       setIsLoading(true);
       setError(null);
       try {
-        return await api.patch(`/progress/${itemId}`, data);
+        const res = await api.patch(`/progress/${itemId}`, data);
+        
+        // Refresh user profile background task to sync global levels and XP state!
+        api.get("/users/me").then((profileRes: any) => {
+          const freshUser = profileRes.data ?? profileRes;
+          if (freshUser) {
+            setUser(freshUser);
+          }
+        }).catch(() => null);
+
+        return res;
       } catch (err: any) {
         const msg = err instanceof Error ? err.message : "Failed to update progress";
         setError(msg);
@@ -145,7 +156,7 @@ export function useUpdateProgress() {
         setIsLoading(false);
       }
     },
-    []
+    [setUser]
   );
 
   return { update, isLoading, error };

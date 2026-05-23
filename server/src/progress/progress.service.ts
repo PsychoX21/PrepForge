@@ -60,9 +60,20 @@ export class ProgressService {
       return { updated, wasAlreadyDone };
     });
 
-    // Award XP if item is transitionally marked done
+    // Award XP if item is transitionally marked done AND they haven't earned it before!
     if (data.status === 'DONE' && !progress.wasAlreadyDone) {
-      await this.gamification.awardXP(userId, ['MARK_ITEM_DONE']);
+      const alreadyEarned = await this.prisma.activityLog.findFirst({
+        where: {
+          userId,
+          action: 'MARK_ITEM_DONE',
+          metadata: itemId,
+        },
+        select: { id: true },
+      });
+
+      if (!alreadyEarned) {
+        await this.gamification.awardXP(userId, ['MARK_ITEM_DONE'], itemId);
+      }
     }
 
     // Invalidate cached track trees and summary stats
@@ -103,12 +114,19 @@ export class ProgressService {
         }
       : {};
 
-    const [total, done, inProgress, starred] = await this.prisma.$transaction([
+    const [total, statusCounts, starred] = await this.prisma.$transaction([
       this.prisma.item.count({ where: itemWhereClause }),
-      this.prisma.userItemProgress.count({ where: { ...progressWhereClause, status: 'DONE' } }),
-      this.prisma.userItemProgress.count({ where: { ...progressWhereClause, status: 'IN_PROGRESS' } }),
+      this.prisma.userItemProgress.groupBy({
+        by: ['status'],
+        where: progressWhereClause,
+        _count: { id: true },
+        orderBy: { status: 'asc' },
+      }),
       this.prisma.userItemProgress.count({ where: { ...progressWhereClause, isStarred: true } }),
     ]);
+
+    const done = (statusCounts.find((g) => g.status === 'DONE')?._count as any)?.id ?? 0;
+    const inProgress = (statusCounts.find((g) => g.status === 'IN_PROGRESS')?._count as any)?.id ?? 0;
 
     return { total, done, inProgress, starred };
   }

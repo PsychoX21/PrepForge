@@ -72,9 +72,6 @@ export function HowItWorksSection() {
 
         {/* Steps */}
         <div className="relative">
-          {/* Connecting line */}
-          <div className="absolute left-8 top-12 bottom-12 w-px bg-gradient-to-b from-accent-blue/30 via-accent-purple/30 to-accent-green/30 hidden md:block" />
-
           <div className="space-y-8">
             {STEPS.map((step, index) => (
               <motion.div
@@ -90,7 +87,7 @@ export function HowItWorksSection() {
                   <div
                     className={`w-16 h-16 rounded-2xl ${step.bgColor} border ${step.borderColor} flex items-center justify-center`}
                   >
-                    <step.icon className={`w-7 h-7 ${step.color}`} />
+                    <step.icon className={`w-7 h-7 ${step.color} shrink-0`} />
                   </div>
                 </div>
 

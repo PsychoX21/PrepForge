@@ -12,14 +12,21 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function LoginPage() {
-  const { isAuthenticated, isInitialized, loginDemo } = useAuth();
+  const { isAuthenticated, isInitialized, loginDemo, logout } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
+    // If we enter the login page, we should clear any residual demo session
+    if (typeof window !== "undefined" && sessionStorage.getItem("prepforge_demo_mode") === "true") {
+      sessionStorage.removeItem("prepforge_demo_mode");
+      logout();
+      return;
+    }
+
     if (isInitialized && isAuthenticated) {
       router.push("/dashboard");
     }
-  }, [isAuthenticated, isInitialized, router]);
+  }, [isAuthenticated, isInitialized, router, logout]);
 
   return (
     <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4 relative overflow-hidden">

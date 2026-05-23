@@ -31,19 +31,6 @@ export function useAuth() {
   useEffect(() => {
     const isDemo = typeof window !== "undefined" && sessionStorage.getItem("prepforge_demo_mode") === "true";
     if (isDemo) {
-      const demoUser: User = {
-        id: "demo-user-id",
-        firebaseUid: "demo-uid",
-        email: "demo@prepforge.com",
-        displayName: "Demo Candidate",
-        photoUrl: null,
-        xp: 140,
-        level: 3,
-        streak: 5,
-        lastActiveDate: new Date().toISOString().split("T")[0],
-        createdAt: new Date().toISOString(),
-      };
-      
       const mockFbUser = {
         uid: "demo-uid",
         email: "demo@prepforge.com",
@@ -52,26 +39,48 @@ export function useAuth() {
       } as any;
 
       setFirebaseUser(mockFbUser);
-      setUser(demoUser);
-      setInitialized(true);
-      setLoading(false);
+      
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const localDate = `${year}-${month}-${day}`;
+
+      api.post<{ data: User }>("/auth/verify", {
+        idToken: "demo-token",
+        localDate,
+      })
+      .then((userData) => {
+        const profile = (userData as { data?: User }).data || (userData as unknown as User);
+        setUser(profile);
+        setInitialized(true);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to sync demo user profile:", err);
+        setUser({
+          id: "demo-user-id",
+          firebaseUid: "demo-uid",
+          email: "demo@prepforge.com",
+          displayName: "Demo Candidate",
+          photoUrl: null,
+          xp: 140,
+          level: 3,
+          streak: 5,
+          createdAt: new Date().toISOString(),
+        });
+        setInitialized(true);
+        setLoading(false);
+      });
       return;
     }
 
     const unsubscribe = onAuthChange(async (fbUser) => {
-      const isDemoNow = typeof window !== "undefined" && sessionStorage.getItem("prepforge_demo_mode") === "true";
-      if (isDemoNow || fbUser?.uid === "demo-uid") {
-        setInitialized(true);
-        setLoading(false);
-        return;
-      }
-
       setFirebaseUser(fbUser);
 
       if (fbUser) {
         try {
           const token = await fbUser.getIdToken();
-          if (token === "demo-token") return;
           const d = new Date();
           const year = d.getFullYear();
           const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -110,19 +119,6 @@ export function useAuth() {
   const loginDemo = async () => {
     setLoading(true);
     try {
-      const demoUser: User = {
-        id: "demo-user-id",
-        firebaseUid: "demo-uid",
-        email: "demo@prepforge.com",
-        displayName: "Demo Candidate",
-        photoUrl: null,
-        xp: 140,
-        level: 3,
-        streak: 5,
-        lastActiveDate: new Date().toISOString().split("T")[0],
-        createdAt: new Date().toISOString(),
-      };
-      
       if (typeof window !== "undefined") {
         sessionStorage.setItem("prepforge_demo_mode", "true");
       }
@@ -135,10 +131,35 @@ export function useAuth() {
       } as any;
 
       setFirebaseUser(mockFbUser);
-      setUser(demoUser);
+
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const localDate = `${year}-${month}-${day}`;
+
+      const userData = await api.post<{ data: User }>("/auth/verify", {
+        idToken: "demo-token",
+        localDate,
+      });
+
+      const profile = (userData as { data?: User }).data || (userData as unknown as User);
+      setUser(profile);
       setInitialized(true);
     } catch (err) {
-      console.error("Demo login failed:", err);
+      console.error("Demo login failed, falling back to static profile:", err);
+      setUser({
+        id: "demo-user-id",
+        firebaseUid: "demo-uid",
+        email: "demo@prepforge.com",
+        displayName: "Demo Candidate",
+        photoUrl: null,
+        xp: 140,
+        level: 3,
+        streak: 5,
+        createdAt: new Date().toISOString(),
+      });
+      setInitialized(true);
     } finally {
       setLoading(false);
     }

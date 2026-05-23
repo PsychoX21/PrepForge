@@ -31,6 +31,62 @@ export class FirebaseAuthGuard implements CanActivate {
 
     const token = authHeader.split('Bearer ')[1];
 
+    if (token === 'demo-token') {
+      let user = await this.prisma.user.findUnique({
+        where: { firebaseUid: 'demo-uid' },
+      });
+
+      if (!user) {
+        let systemUser = await this.prisma.user.findFirst({
+          where: { email: 'system@prepforge.app' },
+        });
+        if (!systemUser) {
+          systemUser = await this.prisma.user.create({
+            data: {
+              firebaseUid: 'system_admin_uid',
+              email: 'system@prepforge.app',
+              displayName: 'System Admin',
+            },
+          });
+        }
+
+        let defaultGroup = await this.prisma.group.findFirst({
+          where: { isDefault: true },
+        });
+        if (!defaultGroup) {
+          defaultGroup = await this.prisma.group.create({
+            data: {
+              name: 'PrepForge Default',
+              description: 'Default group with all curated content',
+              inviteCode: 'DEFAULT_GROUP',
+              isDefault: true,
+              createdById: systemUser.id,
+            },
+          });
+        }
+
+        user = await this.prisma.user.create({
+          data: {
+            firebaseUid: 'demo-uid',
+            email: 'demo@prepforge.com',
+            displayName: 'Demo Candidate',
+            xp: 140,
+            level: 3,
+            streak: 5,
+            memberships: {
+              create: {
+                groupId: defaultGroup.id,
+                role: 'MEMBER',
+              },
+            },
+          },
+        });
+      }
+
+      request.user = user;
+      return true;
+    }
+
     try {
       const decoded = await this.firebaseAdmin.verifyToken(token);
 

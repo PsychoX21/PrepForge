@@ -17,6 +17,83 @@ export class AuthService {
    * Verify an ID token and sync/create the user in our database.
    */
   async verifyAndSyncUser(idToken: string, localDate?: string) {
+    if (idToken === 'demo-token') {
+      let user = await this.prisma.user.findUnique({
+        where: { firebaseUid: 'demo-uid' },
+        include: {
+          memberships: {
+            include: {
+              group: {
+                include: {
+                  _count: { select: { members: true, tracks: true } },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        let systemUser = await this.prisma.user.findFirst({
+          where: { email: 'system@prepforge.app' },
+        });
+        if (!systemUser) {
+          systemUser = await this.prisma.user.create({
+            data: {
+              firebaseUid: 'system_admin_uid',
+              email: 'system@prepforge.app',
+              displayName: 'System Admin',
+            },
+          });
+        }
+
+        let defaultGroup = await this.prisma.group.findFirst({
+          where: { isDefault: true },
+        });
+        if (!defaultGroup) {
+          defaultGroup = await this.prisma.group.create({
+            data: {
+              name: 'PrepForge Default',
+              description: 'Default group with all curated content',
+              inviteCode: 'DEFAULT_GROUP',
+              isDefault: true,
+              createdById: systemUser.id,
+            },
+          });
+        }
+
+        user = await this.prisma.user.create({
+          data: {
+            firebaseUid: 'demo-uid',
+            email: 'demo@prepforge.com',
+            displayName: 'Demo Candidate',
+            xp: 140,
+            level: 3,
+            streak: 5,
+            memberships: {
+              create: {
+                groupId: defaultGroup.id,
+                role: 'MEMBER',
+              },
+            },
+          },
+          include: {
+            memberships: {
+              include: {
+                group: {
+                  include: {
+                    _count: { select: { members: true, tracks: true } },
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+
+      return user;
+    }
+
     try {
       const decoded = await this.firebaseAdmin.verifyToken(idToken);
 

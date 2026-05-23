@@ -26,7 +26,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "PrepForge — Forge Your Path to Top Tech & Quant Roles",
+    default: "PrepForge",
     template: "%s | PrepForge",
   },
   description:
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     siteName: "PrepForge",
-    title: "PrepForge — Forge Your Path to Top Tech & Quant Roles",
+    title: "PrepForge",
     description:
       "Track your preparation progress with granular detail. Compete on leaderboards. Collaborate in real-time.",
   },

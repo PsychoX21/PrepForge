@@ -35,24 +35,14 @@ async function seed() {
 
   console.log(`📦 Group: ${group.name} (${group.id})\n`);
 
+  // Clean up existing default group tracks to allow updates to default-content.ts to propagate
+  console.log('🧹 Cleaning up existing default tracks for re-seeding...');
+  await prisma.track.deleteMany({
+    where: { groupId: group.id },
+  });
+  console.log('✨ Old default tracks cleared.\n');
+
   for (const trackData of DEFAULT_TRACKS) {
-    const existingTracks = await prisma.track.findMany({
-      where: { groupId: group.id, name: trackData.name },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    if (existingTracks.length > 0) {
-      if (existingTracks.length > 1) {
-        console.log(`🧹 Found ${existingTracks.length} duplicate tracks for "${trackData.name}", performing self-healing cleanup...`);
-        // Keep the first one, delete all duplicate entries (cascades cleanly)
-        for (let i = 1; i < existingTracks.length; i++) {
-          await prisma.track.delete({ where: { id: existingTracks[i].id } });
-        }
-      }
-      console.log(`⏭ Track "${trackData.name}" already seeded, skipping`);
-      continue;
-    }
-
     const track = await prisma.track.create({
       data: {
         name: trackData.name,

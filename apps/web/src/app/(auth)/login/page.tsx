@@ -10,10 +10,18 @@ import { Flame, BookOpen } from "lucide-react";
 import { LoginButton } from "@/components/auth";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { API_BASE_URL } from "@/lib/constants";
 
 export default function LoginPage() {
   const { isAuthenticated, isInitialized, loginDemo, logout } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    // Pre-warm the backend by sending a silent request to trigger container spin-up
+    if (typeof window !== "undefined" && API_BASE_URL) {
+      fetch(`${API_BASE_URL}/health`).catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     // If we enter the login page, we should clear any residual demo session

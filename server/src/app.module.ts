@@ -16,6 +16,7 @@ import { GamificationModule } from './gamification/gamification.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { SeedModule } from './seed/seed.module';
 import { RedisModule } from './redis/redis.module';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { RedisModule } from './redis/redis.module';
     RealtimeModule,
     SeedModule,
   ],
+  controllers: [AppController],
   providers: [
     {
       provide: APP_GUARD,
